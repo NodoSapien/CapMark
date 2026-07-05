@@ -1,6 +1,7 @@
 // Composition root: única capa que conoce a los adaptadores concretos y los inyecta en
 // los servicios de aplicación. Cambiar de backend = cambiar aquí, sin tocar dominio/UI.
 
+import { BackupService } from '@application/backup-service';
 import { CatalogoService } from '@application/catalogo-service';
 import { FuenteService } from '@application/fuente-service';
 import { ProgresoService } from '@application/progreso-service';
@@ -20,6 +21,7 @@ export const container = {
   fuentes: new FuenteService(repo, idGen, verifier),
   progreso: new ProgresoService(repo, idGen, reloj),
   scraper: new ScraperService([new GenericScraper()]),
+  backup: new BackupService(repo),
   sync: new SupabaseSync(),
 };
 

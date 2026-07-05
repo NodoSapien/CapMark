@@ -4,7 +4,8 @@ import {
   IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonSearchbar, IonSelect,
   IonSelectOption, IonTitle, IonToolbar, useIonViewWillEnter,
 } from '@ionic/react';
-import { add, cloudOfflineOutline, cloudDoneOutline } from 'ionicons/icons';
+import { add, cloudOfflineOutline, cloudDoneOutline, downloadOutline, folderOpenOutline } from 'ionicons/icons';
+import { useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Filtro } from '@application/catalogo-service';
 import { NuevaObra } from '@application/ports';
@@ -54,17 +55,46 @@ export default function CatalogoPage() {
     await recargar(filtro);
   };
 
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Modo absolutamente local: exporta todo a un archivo JSON (sin nube).
+  const exportar = async () => {
+    const backup = await container.backup.exportar();
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `capmark-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importar = async (file: File) => {
+    try {
+      const backup = JSON.parse(await file.text());
+      await container.backup.importar(backup);
+      await recargar(filtro);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo importar el archivo.');
+    }
+  };
+
   return (
     <IonPage>
       <IonHeader>
         <IonToolbar>
           <IonTitle>Catálogo</IonTitle>
           <IonButtons slot="end">
+            <IonButton onClick={exportar} title="Exportar backup (local)">
+              <IonIcon slot="icon-only" icon={downloadOutline} />
+            </IonButton>
+            <IonButton onClick={() => fileRef.current?.click()} title="Importar backup">
+              <IonIcon slot="icon-only" icon={folderOpenOutline} />
+            </IonButton>
             <IonIcon
-              slot="icon-only"
               icon={container.sync.disponible() ? cloudDoneOutline : cloudOfflineOutline}
-              title={container.sync.disponible() ? 'Sync disponible' : 'Local (sin backend)'}
-              style={{ marginRight: 12 }}
+              title={container.sync.disponible() ? 'Sync disponible' : 'Modo local (sin backend)'}
+              style={{ marginRight: 12, marginLeft: 4 }}
             />
           </IonButtons>
         </IonToolbar>
@@ -138,6 +168,17 @@ export default function CatalogoPage() {
         </IonFab>
       </IonContent>
 
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void importar(f);
+          e.target.value = '';
+        }}
+      />
       <ObraFormModal isOpen={modal} onClose={() => setModal(false)} onSave={crear} />
     </IonPage>
   );
