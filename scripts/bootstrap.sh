@@ -30,9 +30,32 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 0
 fi
 
-# 3. Levanta el backend. Las migraciones se aplican solas al primer arranque.
-echo "  · Levantando backend (Postgres + Auth + Realtime + Edge Functions)…"
+# 3. Levanta el backend (db + auth + rest). Las migraciones se aplican solas al primer
+#    arranque. Realtime y Edge Functions quedan tras el perfil `full` (sync en vivo, Fase 3):
+#    para activarlos:  docker compose --profile full up -d
+echo "  · Levantando backend (Postgres + Auth + REST)…"
 docker compose --env-file "$ENV_FILE" -f "$ROOT/infra/docker-compose.yml" up -d
 
-echo "✓ Listo. Backend en http://localhost:8000 · Postgres en localhost:5432"
-echo "  App:  npm install && npm run dev   (http://localhost:5173)"
+# 4. Ajuste post-arranque: durante sus migraciones GoTrue sobrescribe auth.uid() con una
+#    versión que lee 'request.jwt.claim.sub' (PostgREST < v11). Con PostgREST v12 eso devuelve
+#    NULL y RLS bloquea todo. Esperamos a que la API de GoTrue esté arriba (⇒ migraciones
+#    aplicadas) y volvemos a fijar la versión que lee 'request.jwt.claims' (JSON). Idempotente.
+echo "  · Esperando a GoTrue para ajustar auth.uid()…"
+for _ in $(seq 1 60); do
+  curl -sf http://localhost:9999/health >/dev/null 2>&1 && break
+  sleep 1
+done
+docker compose --env-file "$ENV_FILE" -f "$ROOT/infra/docker-compose.yml" exec -T db \
+  psql -v ON_ERROR_STOP=1 -U postgres -d postgres <<'SQL' >/dev/null 2>&1 && echo "  · auth.uid() ajustado (compatible PostgREST v12)."
+create or replace function auth.uid() returns uuid language sql stable as $fn$
+  select coalesce(
+    nullif(current_setting('request.jwt.claim.sub', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'
+  )::uuid
+$fn$;
+alter function auth.uid() owner to supabase_auth_admin;
+SQL
+
+echo "✓ Listo."
+echo "  · REST (backup/restore): http://localhost:3000   · Auth: http://localhost:9999   · Postgres: localhost:5432"
+echo "  · App:  npm install && npm run dev   (http://localhost:5173)"

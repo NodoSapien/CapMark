@@ -26,10 +26,13 @@ services:
       timeout: 5s
       retries: 10
 
-  # API REST autogenerada sobre el esquema (PostgREST).
+  # API REST autogenerada sobre el esquema (PostgREST). Es la API de backup/restore:
+  # inserta/lee filas respetando RLS con el JWT que emite GoTrue.
   rest:
     image: postgrest/postgrest:v12.2.3
     restart: unless-stopped
+    ports:
+      - '3000:3000' # http://localhost:3000/obra , /fuente , /progreso
     depends_on:
       db:
         condition: service_healthy
@@ -43,20 +46,36 @@ services:
   auth:
     image: supabase/gotrue:v2.158.1
     restart: unless-stopped
+    ports:
+      - '9999:9999' # http://localhost:9999  (signup/login → JWT)
     depends_on:
       db:
         condition: service_healthy
     environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      PORT: 9999
+      API_EXTERNAL_URL: http://localhost:9999
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
       GOTRUE_SITE_URL: http://localhost:5173
+      GOTRUE_URI_ALLOW_LIST: '*'
       GOTRUE_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
       GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_DISABLE_SIGNUP: 'false'
+      # Sin servidor de correo en local: autoconfirma el alta para poder usar la cuenta ya.
+      GOTRUE_MAILER_AUTOCONFIRM: 'true'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_EXTERNAL_PHONE_ENABLED: 'false'
 
-  # Sincronización en tiempo real (RNF-005: cambios < 10 s).
+  # Sincronización en tiempo real (RNF-005: cambios < 10 s). Solo para la fase de sync en
+  # vivo (Fase 3); NO es necesario para backup/restore. Requiere config adicional (tenant,
+  # claves). Arranca solo con: docker compose --profile full up -d
   realtime:
     image: supabase/realtime:v2.33.58
+    profiles: ['full']
     restart: unless-stopped
     depends_on:
       db:
@@ -70,8 +89,11 @@ services:
       API_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
 
   # Edge Functions (Deno): verificación de links y proxy del scraper (RF-017, RNF-008).
+  # Requiere un router `main` (falta); no es necesario para backup/restore.
+  # Arranca solo con: docker compose --profile full up -d
   functions:
     image: supabase/edge-runtime:v1.66.5
+    profiles: ['full']
     restart: unless-stopped
     ports:
       - '8000:9000'
