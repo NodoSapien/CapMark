@@ -56,7 +56,11 @@ export interface SourceScraper {
 export interface SyncPort {
   push(): Promise<void>;
   pull(): Promise<void>;
+  /** ¿Hay un backend configurado? (barato, solo mira configuración). */
   disponible(): boolean;
+  /** ¿El backend responde AHORA? (red, con timeout). Nunca lanza: si falla, es `false`
+   *  y la app sigue en local. Base del aviso "No se puede sincronizar" (RNF-004). */
+  probarConexion(): Promise<boolean>;
 }
 
 export type { NuevaObra, NuevaFuente, NuevoProgreso };

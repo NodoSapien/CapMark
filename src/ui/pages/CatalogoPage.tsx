@@ -18,6 +18,10 @@ import { sembrarDemo } from '@ui/seed';
 
 interface Fila { obra: Obra; capitulo?: number; ultima?: string; }
 
+// Estado de sincronización de cara al usuario. La app siempre funciona en local (RNF-004);
+// esto solo informa si además hay un backend y si responde.
+type EstadoSync = 'local' | 'comprobando' | 'conectado' | 'sin-conexion';
+
 export default function CatalogoPage() {
   const history = useHistory();
   const [filtro, setFiltro] = useState<Filtro>({});
@@ -25,6 +29,16 @@ export default function CatalogoPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [modal, setModal] = useState(false);
+  const [sync, setSync] = useState<EstadoSync>(
+    container.sync.disponible() ? 'comprobando' : 'local',
+  );
+
+  // Comprueba si el backend responde ahora mismo. Sin backend configurado ⇒ 'local'.
+  const comprobarSync = useCallback(async () => {
+    if (!container.sync.disponible()) { setSync('local'); return; }
+    setSync('comprobando');
+    setSync((await container.sync.probarConexion()) ? 'conectado' : 'sin-conexion');
+  }, []);
 
   const recargar = useCallback(async (f: Filtro) => {
     // Universo de tags disponibles (a partir del catálogo completo) para el filtro RF-014.
@@ -42,7 +56,7 @@ export default function CatalogoPage() {
     setFilas(filas);
   }, []);
 
-  useIonViewWillEnter(() => { void recargar(filtro); });
+  useIonViewWillEnter(() => { void recargar(filtro); void comprobarSync(); });
 
   const aplicar = (patch: Partial<Filtro>) => {
     const f = { ...filtro, ...patch };
@@ -92,9 +106,16 @@ export default function CatalogoPage() {
               <IonIcon slot="icon-only" icon={folderOpenOutline} />
             </IonButton>
             <IonIcon
-              icon={container.sync.disponible() ? cloudDoneOutline : cloudOfflineOutline}
-              title={container.sync.disponible() ? 'Sync disponible' : 'Modo local (sin backend)'}
-              style={{ marginRight: 12, marginLeft: 4 }}
+              icon={sync === 'conectado' ? cloudDoneOutline : cloudOfflineOutline}
+              color={sync === 'sin-conexion' ? 'warning' : undefined}
+              title={{
+                local: 'Modo local (sin backend)',
+                comprobando: 'Comprobando conexión…',
+                conectado: 'Sincronización disponible',
+                'sin-conexion': 'No se puede sincronizar',
+              }[sync]}
+              onClick={() => void comprobarSync()}
+              style={{ marginRight: 12, marginLeft: 4, cursor: 'pointer' }}
             />
           </IonButtons>
         </IonToolbar>
@@ -124,6 +145,11 @@ export default function CatalogoPage() {
       </IonHeader>
 
       <IonContent>
+        {sync === 'sin-conexion' && (
+          <IonNote color="warning" style={{ display: 'block', padding: 8 }}>
+            No se puede sincronizar. Trabajando en modo local.
+          </IonNote>
+        )}
         <IonNote className="ion-padding-start" style={{ display: 'block', padding: 8 }}>
           {filas.length} obra{filas.length === 1 ? '' : 's'} {/* RF-014: contador de coincidencias */}
         </IonNote>
