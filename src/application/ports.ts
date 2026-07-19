@@ -63,4 +63,12 @@ export interface SyncPort {
   probarConexion(): Promise<boolean>;
 }
 
+/** Autenticación opcional con un proveedor externo (Google). La app funciona sin él. */
+export interface AuthPort {
+  getToken(): string | null;
+  setToken(token: string, userEmail?: string): void;
+  getUserEmail(): string | null;
+  logout(): void;
+}
+
 export type { NuevaObra, NuevaFuente, NuevoProgreso };

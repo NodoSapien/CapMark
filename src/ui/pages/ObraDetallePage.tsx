@@ -168,6 +168,17 @@ export default function ObraDetallePage() {
           <IonBadge color={colorPrioridad[obra.prioridad]}>{obra.prioridad}</IonBadge>{' '}
           <IonNote>{obra.tipo}</IonNote>
         </div>
+        {obra.url && (
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <IonNote style={{ fontSize: 12, wordBreak: 'break-all', flex: 1 }}>
+              🔗 {obra.url}
+            </IonNote>
+            <IonButton size="small" fill="outline" onClick={() => window.open(obra.url, '_blank', 'noopener')}>
+              <IonIcon slot="start" icon={openOutline} />
+              Abrir
+            </IonButton>
+          </div>
+        )}
         {obra.nombresAlternativos.length > 0 && (
           <p className="muted">También: {obra.nombresAlternativos.join(' · ')}</p>
         )}

@@ -6,14 +6,13 @@
 
 ---
 
-## 0. Principio rector: infraestructura auto-instanciable
+## 0. Principio rector: local-first + BYOS
 
-Requisito explícito del proyecto: **no montar Supabase (ni backend alguno) a mano**. Toda la
-infraestructura debe poder levantarse **con un comando**, versionada como código, de modo que
-cualquier persona (o cualquier dispositivo/entorno) instancie su propio backend sin pasos
-manuales en paneles web.
+Requisito explícito del proyecto: **costo cero de infraestructura**. La sincronización
+usa la cuenta personal de Google del usuario (`appDataFolder`, invisible en Drive UI).
+La app es completamente funcional sin conexión; sync es una acción manual.
 
-Esto se traduce en reglas que atraviesan **todas** las fases:
+Reglas que atraviesan **todas** las fases:
 
 - **Backend self-hosted por Docker Compose.** Nada de crear proyectos a mano en un panel.
   `docker compose up` levanta Postgres + Auth + Realtime + Edge Functions.
@@ -88,11 +87,13 @@ scripts/
 - **Entregable:** CRUD local funcional sin red; los cambios quedan encolados.
 - **Cubre:** RNF-004 (offline), RNF-007 (no pérdida de progreso).
 
-### Fase 3 — Autenticación y sincronización (F-05)
-- Supabase Auth self-hosted; sesión persistente entre aperturas (RF-015).
-- Motor de sync: sube el outbox al reconectar, recibe cambios por Realtime, resuelve por LWW.
-- **Entregable:** dos dispositivos/usuarios sincronizando altas, cambios y borrados.
-- **Cubre:** RF-015, RF-016; RNF-005 (< 10 s), RNF-006 (HTTPS/TLS en transporte).
+### Fase 3 — Autenticación y sincronización BYOS (F-05) — **implementada**
+- Google OAuth 2.0 con scope `drive.appdata`; token gestionado por `GoogleAuthStore` en memoria.
+- Motor de sync: `GoogleDriveSync` sube el catálogo completo como `capmark-db.json` a `appDataFolder`
+  (invisible para el usuario). Pull descarga y fusiona por LWW (`exportadoEn`).
+- UI: `SyncPanel` (modal desde toolbar) con botones subir / bajar / sincronizar.
+- **Entregable:** dos dispositivos del mismo usuario sincronizan el catálogo vía Google Drive.
+- **Cubre:** RF-015 (auth via Google), RF-016 (sync offline-first); RNF-006 (HTTPS/TLS nativo en Drive API).
 
 ### Fase 4 — UI de obras y fuentes (F-01, F-02)
 - Catálogo (lista) + alta/edición de obra: título, tipo, alias, tags, estado, prioridad, notas.
