@@ -47,4 +47,8 @@ export class DexieRepositorio implements Repositorio {
   async listarProgreso(obraId: string): Promise<ProgresoEntry[]> {
     return this.db.progreso.where('obraId').equals(obraId).toArray();
   }
+
+  async eliminarProgreso(id: string): Promise<void> {
+    await this.db.progreso.delete(id);
+  }
 }
