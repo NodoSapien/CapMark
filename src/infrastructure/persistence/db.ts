@@ -19,6 +19,12 @@ export class CapMarkDB extends Dexie {
       fuentes: 'id, obraId, esPrincipal',
       progreso: 'id, obraId, registradoEn',
     });
+    // v2: agrega campo url? en obras (campo opcional, sin índice; Dexie lo persiste automáticamente)
+    this.version(2).stores({
+      obras: 'id, titulo, tipo, estado, prioridad, actualizadaEn',
+      fuentes: 'id, obraId, esPrincipal',
+      progreso: 'id, obraId, registradoEn',
+    });
   }
 }
 

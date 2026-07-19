@@ -16,6 +16,7 @@ export interface Obra {
   tags: string[];
   estado: EstadoObra;
   prioridad: Prioridad;
+  url?: string; // URL de lectura actual (cambiable)
   notas?: string;
   creadaEn: string; // ISO 8601
   actualizadaEn: string; // ISO 8601
@@ -28,6 +29,7 @@ export interface NuevaObra {
   tags?: string[];
   estado?: EstadoObra;
   prioridad?: Prioridad;
+  url?: string; // URL de lectura actual
   notas?: string;
 }
 
@@ -58,6 +60,7 @@ export function crearObra(input: NuevaObra, id: string, ahora = new Date()): Obr
   if (!PRIORIDADES.includes(prioridad)) throw new DomainError(`Prioridad inválida: ${prioridad} (RF-005).`);
 
   const iso = ahora.toISOString();
+  const urlRaw = input.url?.trim();
   return {
     id,
     titulo,
@@ -66,6 +69,7 @@ export function crearObra(input: NuevaObra, id: string, ahora = new Date()): Obr
     tags: dedup(input.tags ?? []), // RF-003: sin duplicados dentro de la obra
     estado,
     prioridad,
+    url: urlRaw || undefined,
     notas: input.notas?.trim() || undefined,
     creadaEn: iso,
     actualizadaEn: iso,
@@ -82,6 +86,7 @@ export function editarObra(obra: Obra, cambios: Partial<NuevaObra>, ahora = new 
       tags: cambios.tags ?? obra.tags,
       estado: cambios.estado ?? obra.estado,
       prioridad: cambios.prioridad ?? obra.prioridad,
+      url: cambios.url !== undefined ? cambios.url : obra.url,
       notas: cambios.notas ?? obra.notas,
     },
     obra.id,
