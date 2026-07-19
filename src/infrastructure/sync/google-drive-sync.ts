@@ -75,13 +75,30 @@ export class GoogleDriveSync implements SyncPort {
     if (!res.ok) return;
 
     const remote = await res.json();
+    if (remote?.app !== 'capmark' || remote.version !== 1 || !Array.isArray(remote.obras)) {
+      return; // El archivo remoto no es un backup válido de CapMark
+    }
 
-    // LWW: solo importamos si el remoto es más reciente que nuestro último export
+    // LWW por obra: importamos solo si la obra remota fue actualizada después que la local
     const localBackup = await this.backup.exportar();
-    const remoteTs = new Date(remote.exportadoEn ?? 0).getTime();
-    const localTs = new Date(localBackup.exportadoEn ?? 0).getTime();
-    if (remoteTs > localTs) {
-      await this.backup.importar(remote, /* reemplazar= */ true);
+    const localObrasMap = new Map(localBackup.obras.map((o) => [o.obra.id, o]));
+
+    const obrasParaImportar = [];
+    for (const remoteDetalle of remote.obras) {
+      const localDetalle = localObrasMap.get(remoteDetalle.obra.id);
+      if (!localDetalle) {
+        obrasParaImportar.push(remoteDetalle);
+      } else {
+        const remoteActualizada = new Date(remoteDetalle.obra.actualizadaEn || 0).getTime();
+        const localActualizada = new Date(localDetalle.obra.actualizadaEn || 0).getTime();
+        if (remoteActualizada > localActualizada) {
+          obrasParaImportar.push(remoteDetalle);
+        }
+      }
+    }
+
+    if (obrasParaImportar.length > 0) {
+      await this.backup.importar({ ...remote, obras: obrasParaImportar }, /* reemplazar= */ true);
     }
   }
 
