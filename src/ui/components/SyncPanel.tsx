@@ -54,8 +54,8 @@ export default function SyncPanel({ isOpen, onClose, onSyncCompleto }: Props) {
     setEstado('sincronizando');
     setMensaje('');
     try {
-      await container.sync.push();
       await container.sync.pull();
+      await container.sync.push();
       setEstado('conectado');
       setMensaje(`Sincronizado · ${new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`);
       onSyncCompleto?.();
