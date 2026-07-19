@@ -21,4 +21,31 @@ export class ProgresoService {
   async actual(obraId: string): Promise<ProgresoEntry | undefined> {
     return puntoActual(await this.repo.listarProgreso(obraId));
   }
+
+  /** Fija un capítulo y auto-rellena todos los capítulos enteros anteriores si no existen. */
+  async fijar(obraId: string, input: NuevoProgreso): Promise<ProgresoEntry> {
+    const target = input.capitulo;
+    const historialActual = await this.repo.listarProgreso(obraId);
+    const setCapitulos = new Set(historialActual.map((e) => e.capitulo));
+    
+    // Rellenar enteros anteriores (ej: si target es 50, rellenar 1..49)
+    if (target > 1) {
+      const tope = Math.floor(target);
+      // Iteramos creando entradas con la hora actual ligeramente desfasada 
+      // (aunque al final todos tendrán tiempos similares, el último será el target)
+      for (let i = 1; i <= tope; i++) {
+        if (!setCapitulos.has(i) && i !== target) {
+          const entry = registrarProgreso(obraId, { capitulo: i }, this.id.nuevo(), this.reloj.ahora());
+          await this.repo.agregarProgreso(entry);
+        }
+      }
+    }
+
+    // Registrar finalmente el capítulo deseado para que quede como el más reciente
+    return this.registrar(obraId, input);
+  }
+
+  async eliminar(id: string): Promise<void> {
+    await this.repo.eliminarProgreso(id);
+  }
 }

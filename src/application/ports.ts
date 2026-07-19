@@ -29,6 +29,7 @@ export interface Repositorio {
   // Progreso
   agregarProgreso(entry: ProgresoEntry): Promise<void>;
   listarProgreso(obraId: string): Promise<ProgresoEntry[]>;
+  eliminarProgreso(id: string): Promise<void>;
 }
 
 /** RF-017 / RNF-008: verifica del lado servidor si una URL responde (≤ 5 s, no bloqueante). */

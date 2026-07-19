@@ -40,4 +40,13 @@ export class MemoryRepositorio implements Repositorio {
   async listarProgreso(obraId: string): Promise<ProgresoEntry[]> {
     return [...(this.progreso.get(obraId) ?? [])];
   }
+  async eliminarProgreso(id: string): Promise<void> {
+    for (const [obraId, entries] of this.progreso.entries()) {
+      const filtered = entries.filter((e) => e.id !== id);
+      if (filtered.length !== entries.length) {
+        this.progreso.set(obraId, filtered);
+        break;
+      }
+    }
+  }
 }

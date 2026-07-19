@@ -57,7 +57,7 @@ export default function ObraDetallePage() {
         {
           text: 'Guardar',
           handler: async (d) => {
-            await container.progreso.registrar(id, { capitulo: Number.parseFloat(d.capitulo), punto: d.punto });
+            await container.progreso.fijar(id, { capitulo: Number.parseFloat(d.capitulo), punto: d.punto });
             await cargar();
           },
         },
@@ -140,6 +140,11 @@ export default function ObraDetallePage() {
   const marcarPrincipal = async (f: Fuente) => setFuentes(await container.fuentes.marcarPrincipal(id, f.id));
   const eliminarFuente = async (f: Fuente) => setFuentes(await container.fuentes.eliminar(id, f.id));
   const abrir = (f: Fuente) => window.open(f.url, '_blank', 'noopener');
+  const eliminarProgreso = async (progresoId: string) => {
+    await container.progreso.eliminar(progresoId);
+    toast({ message: 'Registro de progreso eliminado', duration: 1500 });
+    await cargar();
+  };
 
   if (!obra) {
     return (
@@ -244,7 +249,16 @@ export default function ObraDetallePage() {
                 <h3 className="cap-actual">Cap. {capFmt(h.capitulo)}</h3>
                 {h.punto && <p className="muted">{h.punto}</p>}
               </IonLabel>
-              <IonNote slot="end">{fechaCorta(h.registradoEn)}</IonNote>
+              <IonNote slot="end" style={{ marginRight: '8px' }}>{fechaCorta(h.registradoEn)}</IonNote>
+              <IonButton 
+                slot="end" 
+                color="danger" 
+                fill="clear" 
+                onClick={() => eliminarProgreso(h.id)} 
+                title="Deshacer (Eliminar registro)"
+              >
+                <IonIcon slot="icon-only" icon={trashOutline} />
+              </IonButton>
             </IonItem>
           ))}
         </IonList>

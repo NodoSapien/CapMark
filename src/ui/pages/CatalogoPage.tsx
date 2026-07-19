@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import {
   IonBadge, IonButton, IonButtons, IonChip, IonContent, IonFab, IonFabButton, IonHeader,
   IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonSearchbar, IonSelect,
-  IonSelectOption, IonTitle, IonToolbar, useIonViewWillEnter,
+  IonSelectOption, IonTitle, IonToolbar, useIonViewWillEnter, IonModal,
 } from '@ionic/react';
 import { add, cloudOutline, downloadOutline, folderOpenOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
@@ -26,6 +26,7 @@ export default function CatalogoPage() {
   const [total, setTotal] = useState(0);
   const [modal, setModal] = useState(false);
   const [syncPanel, setSyncPanel] = useState(false);
+  const [welcomeModal, setWelcomeModal] = useState(false);
 
   const recargar = useCallback(async (f: Filtro) => {
     // Universo de tags disponibles (a partir del catálogo completo) para el filtro RF-014.
@@ -41,6 +42,9 @@ export default function CatalogoPage() {
       }),
     );
     setFilas(filas);
+    if (todas.length === 0) {
+      setWelcomeModal(true);
+    }
   }, []);
 
   useIonViewWillEnter(() => { void recargar(filtro); });
@@ -140,6 +144,9 @@ export default function CatalogoPage() {
             {total === 0 ? (
               <>
                 <p className="muted">Tu catálogo está vacío.</p>
+                <IonButton fill="outline" onClick={() => setWelcomeModal(true)}>
+                  Ver bienvenida
+                </IonButton>
                 <IonButton fill="outline" onClick={async () => { await sembrarDemo(); await recargar(filtro); }}>
                   Cargar datos de ejemplo
                 </IonButton>
@@ -192,6 +199,33 @@ export default function CatalogoPage() {
         onClose={() => setSyncPanel(false)}
         onSyncCompleto={() => void recargar(filtro)}
       />
+      
+      <IonModal isOpen={welcomeModal} onDidDismiss={() => setWelcomeModal(false)}>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>¡Bienvenido a CapMark!</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <div className="ion-text-center" style={{ marginTop: '20px' }}>
+            <h2 style={{ marginBottom: '16px' }}>Tu gestor de lecturas personal</h2>
+            <p style={{ fontSize: '1.1em', lineHeight: '1.5' }}>
+              CapMark está diseñado para ayudarte a gestionar las obras (mangas, webtoons, novelas) que llevas en distintas páginas de forma sencilla.
+            </p>
+            <p style={{ fontSize: '1.1em', lineHeight: '1.5', marginTop: '16px' }}>
+              <strong>100% Autoalojado:</strong> Todos tus datos se guardan en tu propio dispositivo. Nada se comparte con terceros sin tu permiso. Si deseas, puedes sincronizar tu progreso usando tu propio Google Drive.
+            </p>
+            <div style={{ marginTop: '30px' }}>
+              <IonButton expand="block" onClick={() => { setWelcomeModal(false); setModal(true); }}>
+                Agregar mi primera obra
+              </IonButton>
+              <IonButton expand="block" fill="outline" onClick={() => setWelcomeModal(false)} style={{ marginTop: '10px' }}>
+                Explorar la app
+              </IonButton>
+            </div>
+          </div>
+        </IonContent>
+      </IonModal>
     </IonPage>
   );
 }
