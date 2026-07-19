@@ -1,0 +1,102 @@
+# Backend auto-instanciable para CapMark (Supabase self-hosted, versión enfocada).
+# Un solo comando lo levanta: `cd infra && docker compose up -d`.
+# El esquema y las políticas RLS se aplican SOLOS al primer arranque de Postgres
+# (todo en ./migrations se ejecuta desde /docker-entrypoint-initdb.d).
+#
+# Nada de paneles manuales: los secretos vienen del .env de la raíz (ver .env.example).
+
+name: capmark
+
+services:
+  db:
+    image: supabase/postgres:15.1.1.78
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    volumes:
+      - ./volumes/db:/var/lib/postgresql/data
+      # Migraciones versionadas: se aplican en orden alfabético en la primera inicialización.
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # API REST autogenerada sobre el esquema (PostgREST). Es la API de backup/restore:
+  # inserta/lee filas respetando RLS con el JWT que emite GoTrue.
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    restart: unless-stopped
+    ports:
+      - '3000:3000' # http://localhost:3000/obra , /fuente , /progreso
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
+
+  # Autenticación (GoTrue): cuentas y sesiones (RF-015, RNF-006).
+  auth:
+    image: supabase/gotrue:v2.158.1
+    restart: unless-stopped
+    ports:
+      - '9999:9999' # http://localhost:9999  (signup/login → JWT)
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      PORT: 9999
+      API_EXTERNAL_URL: http://localhost:9999
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:5173
+      GOTRUE_URI_ALLOW_LIST: '*'
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_DISABLE_SIGNUP: 'false'
+      # Sin servidor de correo en local: autoconfirma el alta para poder usar la cuenta ya.
+      GOTRUE_MAILER_AUTOCONFIRM: 'true'
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_EXTERNAL_PHONE_ENABLED: 'false'
+
+  # Sincronización en tiempo real (RNF-005: cambios < 10 s). Solo para la fase de sync en
+  # vivo (Fase 3); NO es necesario para backup/restore. Requiere config adicional (tenant,
+  # claves). Arranca solo con: docker compose --profile full up -d
+  realtime:
+    image: supabase/realtime:v2.33.58
+    profiles: ['full']
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_NAME: postgres
+      API_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
+
+  # Edge Functions (Deno): verificación de links y proxy del scraper (RF-017, RNF-008).
+  # Requiere un router `main` (falta); no es necesario para backup/restore.
+  # Arranca solo con: docker compose --profile full up -d
+  functions:
+    image: supabase/edge-runtime:v1.66.5
+    profiles: ['full']
+    restart: unless-stopped
+    ports:
+      - '8000:9000'
+    volumes:
+      - ./functions:/home/deno/functions:ro
+    command: ['start', '--main-service', '/home/deno/functions']
