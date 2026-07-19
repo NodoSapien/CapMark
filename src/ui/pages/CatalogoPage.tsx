@@ -1,11 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   IonBadge, IonButton, IonButtons, IonChip, IonContent, IonFab, IonFabButton, IonHeader,
   IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonSearchbar, IonSelect,
   IonSelectOption, IonTitle, IonToolbar, useIonViewWillEnter,
 } from '@ionic/react';
-import { add, cloudOfflineOutline, cloudDoneOutline, downloadOutline, folderOpenOutline } from 'ionicons/icons';
-import { useRef } from 'react';
+import { add, cloudOutline, downloadOutline, folderOpenOutline } from 'ionicons/icons';
 import { useHistory } from 'react-router-dom';
 import { Filtro } from '@application/catalogo-service';
 import { NuevaObra } from '@application/ports';
@@ -13,14 +12,11 @@ import { Obra } from '@domain/obra';
 import { ESTADOS_OBRA, PRIORIDADES } from '@domain/types';
 import { container } from '@infrastructure/container';
 import ObraFormModal from '@ui/components/ObraFormModal';
+import SyncPanel from '@ui/components/SyncPanel';
 import { capFmt, colorEstado, colorPrioridad, fechaCorta } from '@ui/format';
 import { sembrarDemo } from '@ui/seed';
 
 interface Fila { obra: Obra; capitulo?: number; ultima?: string; }
-
-// Estado de sincronización de cara al usuario. La app siempre funciona en local (RNF-004);
-// esto solo informa si además hay un backend y si responde.
-type EstadoSync = 'local' | 'comprobando' | 'conectado' | 'sin-conexion';
 
 export default function CatalogoPage() {
   const history = useHistory();
@@ -29,16 +25,7 @@ export default function CatalogoPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
   const [modal, setModal] = useState(false);
-  const [sync, setSync] = useState<EstadoSync>(
-    container.sync.disponible() ? 'comprobando' : 'local',
-  );
-
-  // Comprueba si el backend responde ahora mismo. Sin backend configurado ⇒ 'local'.
-  const comprobarSync = useCallback(async () => {
-    if (!container.sync.disponible()) { setSync('local'); return; }
-    setSync('comprobando');
-    setSync((await container.sync.probarConexion()) ? 'conectado' : 'sin-conexion');
-  }, []);
+  const [syncPanel, setSyncPanel] = useState(false);
 
   const recargar = useCallback(async (f: Filtro) => {
     // Universo de tags disponibles (a partir del catálogo completo) para el filtro RF-014.
@@ -56,7 +43,7 @@ export default function CatalogoPage() {
     setFilas(filas);
   }, []);
 
-  useIonViewWillEnter(() => { void recargar(filtro); void comprobarSync(); });
+  useIonViewWillEnter(() => { void recargar(filtro); });
 
   const aplicar = (patch: Partial<Filtro>) => {
     const f = { ...filtro, ...patch };
@@ -105,18 +92,16 @@ export default function CatalogoPage() {
             <IonButton onClick={() => fileRef.current?.click()} title="Importar backup">
               <IonIcon slot="icon-only" icon={folderOpenOutline} />
             </IonButton>
-            <IonIcon
-              icon={sync === 'conectado' ? cloudDoneOutline : cloudOfflineOutline}
-              color={sync === 'sin-conexion' ? 'warning' : undefined}
-              title={{
-                local: 'Modo local (sin backend)',
-                comprobando: 'Comprobando conexión…',
-                conectado: 'Sincronización disponible',
-                'sin-conexion': 'No se puede sincronizar',
-              }[sync]}
-              onClick={() => void comprobarSync()}
-              style={{ marginRight: 12, marginLeft: 4, cursor: 'pointer' }}
-            />
+            <IonButton
+              onClick={() => setSyncPanel(true)}
+              title={container.sync.disponible() ? 'Google Drive conectado' : 'Conectar Google Drive'}
+            >
+              <IonIcon
+                slot="icon-only"
+                icon={cloudOutline}
+                color={container.sync.disponible() ? 'success' : 'medium'}
+              />
+            </IonButton>
           </IonButtons>
         </IonToolbar>
         <IonToolbar>
@@ -145,11 +130,7 @@ export default function CatalogoPage() {
       </IonHeader>
 
       <IonContent>
-        {sync === 'sin-conexion' && (
-          <IonNote color="warning" style={{ display: 'block', padding: 8 }}>
-            No se puede sincronizar. Trabajando en modo local.
-          </IonNote>
-        )}
+
         <IonNote className="ion-padding-start" style={{ display: 'block', padding: 8 }}>
           {filas.length} obra{filas.length === 1 ? '' : 's'} {/* RF-014: contador de coincidencias */}
         </IonNote>
@@ -206,6 +187,11 @@ export default function CatalogoPage() {
         }}
       />
       <ObraFormModal isOpen={modal} onClose={() => setModal(false)} onSave={crear} />
+      <SyncPanel
+        isOpen={syncPanel}
+        onClose={() => setSyncPanel(false)}
+        onSyncCompleto={() => void recargar(filtro)}
+      />
     </IonPage>
   );
 }

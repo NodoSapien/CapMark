@@ -31,8 +31,31 @@
 | Backend / sync | **Firebase (Firestore + Auth)** | Sync offline muy pulido, pero NoSQL: el modelo relacional Obra/Fuente/Progreso queda menos natural y hay más *lock-in*. |
 | Sync avanzado (opcional) | **PowerSync / ElectricSQL** sobre Postgres | Sync local-first con Postgres si la calidad offline es crítica; más piezas que mantener para un proyecto personal. |
 
+## Opción C — BYOS Google Drive (**implementada**)
+
+| Capa | Elección | Justificación |
+|------|----------|-|
+| App / UI | **Ionic + Capacitor** con TypeScript (React) | Sin cambios frente a Opción A. |
+| Persistencia local + offline | **Dexie / IndexedDB** | Ídem. Los datos locales siguen siendo la fuente de verdad. |
+| Backend, auth y sync | **Google Drive `appDataFolder`** (BYOS) | Costo $0; el usuario autentifica con su propia cuenta Google via OAuth 2.0 (`drive.appdata`). La carpeta es invisible para el usuario y aislada por `client_id`. |
+| Auth | **`@react-oauth/google`** (popup nativo) | Sin servidor propio de auth; Google gestiona tokens y renovación. |
+| Verificación de links | Fallback `no-cors` desde cliente (best-effort) | Sin Edge Function; RF-017 es `Should`. Opcional: Cloudflare Worker gratuito como proxy. |
+| Estrategia de conflictos | Última escritura gana por `exportadoEn` | Igual que la Opción A pero sin Realtime; sync manual o al abrir la app. |
+
+### Ventajas frente a Opción A
+
+- **Costo cero de infraestructura**: no hay Docker, Postgres ni servidor que mantener.
+- **Cero fricción de instanciación**: `VITE_GOOGLE_CLIENT_ID` en `.env` es el único requisito.
+- **Privacidad**: los datos viven en la cuenta personal del usuario, no en un servidor tuyo.
+
+### Limitaciones frente a Opción A
+
+- Sync manual (no Realtime en tiempo real); suficiente para uso personal.
+- RF-017 (verificación de links) en modo best-effort sin proxy externo.
+- Requiere conexión para sincronizar (la app sigue funcionando offline en local).
+
 ## Recomendación
 
-Para un MVP personal con multi-dispositivo, offline y modelo relacional, **Opción A**
-(Ionic + Capacitor + Supabase) ofrece el mejor equilibrio entre esfuerzo, portabilidad y
-reutilización de lo que ya dominas, y deja el camino abierto al bot de Telegram en fase 2.
+Para un MVP personal local-first de costo cero, **Opción C** (BYOS Google Drive) es la
+elección óptima. Elimina toda la infraestructura self-hosted manteniendo la arquitectura
+en capas que permite volver a la Opción A en cualquier momento cambiando solo `container.ts`.
