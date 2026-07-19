@@ -17,14 +17,6 @@ export default defineConfig({
   build: {
     // El core de Ionic (~1.3 MB) es un vendor conocido y cacheable; no es código nuestro.
     chunkSizeWarningLimit: 1400,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router', 'react-router-dom'],
-          ionic: ['@ionic/react', '@ionic/react-router', 'ionicons'],
-        },
-      },
-    },
   },
   test: {
     environment: 'node',
