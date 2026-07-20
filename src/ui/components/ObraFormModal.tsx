@@ -6,7 +6,8 @@ import {
 import { codeSlash, createOutline } from 'ionicons/icons';
 import { NuevaObra } from '@application/ports';
 import { Obra } from '@domain/obra';
-import { ESTADOS_OBRA, PRIORIDADES, TIPOS_OBRA } from '@domain/types';
+import { ESTADOS_OBRA, PRIORIDADES, TIPOS_OBRA, ESTADOS_PUBLICACION } from '@domain/types';
+import { container } from '@infrastructure/container';
 
 interface Props {
   isOpen: boolean;
@@ -28,6 +29,13 @@ export default function ObraFormModal({ isOpen, obra, onClose, onSave }: Props) 
   const [jsonText, setJsonText] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [todasObras, setTodasObras] = useState<Obra[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      container.catalogo.buscar({}).then(setTodasObras);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (obra) {
@@ -38,13 +46,18 @@ export default function ObraFormModal({ isOpen, obra, onClose, onSave }: Props) 
         prioridad: obra.prioridad,
         url: obra.url ?? '',
         notas: obra.notas,
+        autor: obra.autor,
+        artista: obra.artista,
+        estadoPublicacion: obra.estadoPublicacion,
+        calificacion: obra.calificacion,
+        obrasRelacionadas: obra.obrasRelacionadas,
       };
       setForm(base);
       setAlias(obra.nombresAlternativos.join(', '));
       setTags(obra.tags.join(', '));
       setUrl(obra.url ?? '');
       setJsonText(JSON.stringify(
-        { ...base, nombresAlternativos: obra.nombresAlternativos, tags: obra.tags },
+        { ...base, nombresAlternativos: obra.nombresAlternativos, tags: obra.tags, obrasRelacionadas: obra.obrasRelacionadas },
         null,
         2,
       ));
@@ -99,7 +112,7 @@ export default function ObraFormModal({ isOpen, obra, onClose, onSave }: Props) 
     setJsonText(raw);
     setJsonError(null);
     try {
-      const parsed = JSON.parse(raw) as Partial<NuevaObra> & { nombresAlternativos?: string[]; tags?: string[] };
+      const parsed = JSON.parse(raw) as Partial<NuevaObra> & { nombresAlternativos?: string[]; tags?: string[]; obrasRelacionadas?: string[] };
       setForm({
         titulo: parsed.titulo ?? '',
         tipo: parsed.tipo ?? 'manga',
@@ -107,6 +120,11 @@ export default function ObraFormModal({ isOpen, obra, onClose, onSave }: Props) 
         prioridad: parsed.prioridad ?? 'media',
         url: parsed.url ?? '',
         notas: parsed.notas,
+        autor: parsed.autor,
+        artista: parsed.artista,
+        estadoPublicacion: parsed.estadoPublicacion,
+        calificacion: parsed.calificacion,
+        obrasRelacionadas: parsed.obrasRelacionadas,
       });
       setAlias((parsed.nombresAlternativos ?? []).join(', '));
       setTags((parsed.tags ?? []).join(', '));
@@ -181,6 +199,14 @@ export default function ObraFormModal({ isOpen, obra, onClose, onSave }: Props) 
             </IonItem>
 
             <IonItem>
+              <IonLabel>Estado Publicación</IonLabel>
+              <IonSelect value={form.estadoPublicacion} onIonChange={(e) => setField({ estadoPublicacion: e.detail.value || undefined })}>
+                <IonSelectOption value="">Desconocido</IonSelectOption>
+                {ESTADOS_PUBLICACION.map((s) => <IonSelectOption key={s} value={s}>{s}</IonSelectOption>)}
+              </IonSelect>
+            </IonItem>
+
+            <IonItem>
               <IonLabel>Prioridad</IonLabel>
               <IonSelect value={form.prioridad} onIonChange={(e) => setField({ prioridad: e.detail.value })}>
                 {PRIORIDADES.map((p) => <IonSelectOption key={p} value={p}>{p}</IonSelectOption>)}
@@ -213,6 +239,52 @@ export default function ObraFormModal({ isOpen, obra, onClose, onSave }: Props) 
                 onIonInput={(e) => setTagsSync(e.detail.value ?? '')}
                 placeholder="acción, fantasía"
               />
+            </IonItem>
+
+            <IonItem>
+              <IonLabel position="stacked">Autor</IonLabel>
+              <IonInput
+                value={form.autor ?? ''}
+                onIonInput={(e) => setField({ autor: e.detail.value ?? undefined })}
+                placeholder="Ej. Chugong"
+              />
+            </IonItem>
+
+            <IonItem>
+              <IonLabel position="stacked">Artista</IonLabel>
+              <IonInput
+                value={form.artista ?? ''}
+                onIonInput={(e) => setField({ artista: e.detail.value ?? undefined })}
+                placeholder="Ej. DUBU"
+              />
+            </IonItem>
+
+            <IonItem>
+              <IonLabel position="stacked">Calificación (0 a 5)</IonLabel>
+              <IonInput
+                type="number"
+                step="0.5"
+                min="0"
+                max="5"
+                value={form.calificacion ?? ''}
+                onIonInput={(e) => {
+                  const val = e.detail.value;
+                  setField({ calificacion: val ? parseFloat(val) : undefined });
+                }}
+              />
+            </IonItem>
+
+            <IonItem>
+              <IonLabel>Obras Relacionadas</IonLabel>
+              <IonSelect
+                multiple={true}
+                value={form.obrasRelacionadas ?? []}
+                onIonChange={(e) => setField({ obrasRelacionadas: e.detail.value })}
+              >
+                {todasObras.filter(o => o.id !== obra?.id).map((o) => (
+                  <IonSelectOption key={o.id} value={o.id}>{o.titulo}</IonSelectOption>
+                ))}
+              </IonSelect>
             </IonItem>
 
             <IonItem>

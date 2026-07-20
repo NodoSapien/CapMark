@@ -27,12 +27,20 @@ export default function ObraDetallePage() {
   const [obra, setObra] = useState<Obra>();
   const [fuentes, setFuentes] = useState<Fuente[]>([]);
   const [historial, setHistorial] = useState<ProgresoEntry[]>([]);
+  const [relacionadas, setRelacionadas] = useState<Obra[]>([]);
   const [editar, setEditar] = useState(false);
 
   const cargar = async () => {
-    setObra(await container.catalogo.obtener(id));
+    const o = await container.catalogo.obtener(id);
+    setObra(o);
     setFuentes(await container.fuentes.listar(id));
     setHistorial(await container.progreso.historial(id));
+    if (o?.obrasRelacionadas?.length) {
+      const rels = await Promise.all(o.obrasRelacionadas.map((rid) => container.catalogo.obtener(rid)));
+      setRelacionadas(rels.filter(Boolean) as Obra[]);
+    } else {
+      setRelacionadas([]);
+    }
   };
   useIonViewWillEnter(() => { void cargar(); });
 
@@ -188,6 +196,27 @@ export default function ObraDetallePage() {
           <p className="muted">También: {obra.nombresAlternativos.join(' · ')}</p>
         )}
         <div>{obra.tags.map((t) => <IonChip key={t} outline>{t}</IonChip>)}</div>
+        
+        <div style={{ marginTop: 12, marginBottom: 12 }}>
+          {obra.autor && <p style={{ margin: '4px 0' }}><strong>Autor:</strong> {obra.autor}</p>}
+          {obra.artista && <p style={{ margin: '4px 0' }}><strong>Artista:</strong> {obra.artista}</p>}
+          {obra.estadoPublicacion && <p style={{ margin: '4px 0' }}><strong>Publicación:</strong> <span style={{ textTransform: 'capitalize' }}>{obra.estadoPublicacion}</span></p>}
+          {obra.calificacion !== undefined && <p style={{ margin: '4px 0' }}><strong>Calificación:</strong> ⭐ {obra.calificacion}</p>}
+        </div>
+
+        {relacionadas.length > 0 && (
+          <div style={{ marginTop: 12, marginBottom: 16 }}>
+            <IonLabel><strong>Adaptaciones / Relacionadas:</strong></IonLabel>
+            <div style={{ marginTop: 4 }}>
+              {relacionadas.map(rel => (
+                <IonButton key={rel.id} fill="outline" size="small" onClick={() => history.push(`/obra/${rel.id}`)}>
+                  {rel.titulo}
+                </IonButton>
+              ))}
+            </div>
+          </div>
+        )}
+
         {obra.notas && <IonText><p>{obra.notas}</p></IonText>}
 
         {/* Progreso (RF-011/012, RNF-002) */}
