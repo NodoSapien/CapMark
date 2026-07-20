@@ -9,7 +9,7 @@ import { useHistory } from 'react-router-dom';
 import { Filtro } from '@application/catalogo-service';
 import { NuevaObra } from '@application/ports';
 import { Obra } from '@domain/obra';
-import { ESTADOS_OBRA, PRIORIDADES } from '@domain/types';
+import { ESTADOS_OBRA, PRIORIDADES, ESTADOS_PUBLICACION } from '@domain/types';
 import { container } from '@infrastructure/container';
 import ObraFormModal from '@ui/components/ObraFormModal';
 import SyncPanel from '@ui/components/SyncPanel';
@@ -129,6 +129,10 @@ export default function CatalogoPage() {
               <IonSelectOption value="">Todos</IonSelectOption>
               {tags.map((t) => <IonSelectOption key={t} value={t}>{t}</IonSelectOption>)}
             </IonSelect>
+            <IonSelect placeholder="Publicación" value={filtro.estadoPublicacion} onIonChange={(e) => aplicar({ estadoPublicacion: e.detail.value || undefined })}>
+              <IonSelectOption value="">Cualquiera</IonSelectOption>
+              {ESTADOS_PUBLICACION.map((s) => <IonSelectOption key={s} value={s}>{s}</IonSelectOption>)}
+            </IonSelect>
           </IonItem>
         </IonToolbar>
       </IonHeader>
@@ -163,6 +167,8 @@ export default function CatalogoPage() {
                   <h2>{obra.titulo}</h2>
                   <p className="muted">
                     {obra.tipo} · Cap. <span className="cap-actual">{capFmt(capitulo)}</span> · Última: {fechaCorta(ultima)}
+                    {obra.calificacion ? ` · ⭐ ${obra.calificacion}` : ''}
+                    {obra.autor ? ` · 👤 ${obra.autor}` : ''}
                   </p>
                   <div>
                     {obra.tags.slice(0, 3).map((t) => <IonChip key={t} outline>{t}</IonChip>)}

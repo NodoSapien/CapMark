@@ -11,6 +11,9 @@ export const PRIORIDADES: Prioridad[] = ['alta', 'media', 'baja'];
 
 export type EstadoFuente = 'activa' | 'caida' | 'sin_verificar';
 
+export type EstadoPublicacion = 'emision' | 'finalizado' | 'pausado' | 'cancelado';
+export const ESTADOS_PUBLICACION: EstadoPublicacion[] = ['emision', 'finalizado', 'pausado', 'cancelado'];
+
 /** Error de violación de una invariante de dominio. */
 export class DomainError extends Error {
   constructor(message: string) {
