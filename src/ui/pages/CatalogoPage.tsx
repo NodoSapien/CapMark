@@ -15,6 +15,7 @@ import ObraFormModal from '@ui/components/ObraFormModal';
 import SyncPanel from '@ui/components/SyncPanel';
 import { capFmt, colorEstado, colorPrioridad, fechaCorta } from '@ui/format';
 import { sembrarDemo } from '@ui/seed';
+import StarRating from '@ui/components/StarRating';
 
 interface Fila { obra: Obra; capitulo?: number; ultima?: string; }
 
@@ -28,24 +29,42 @@ export default function CatalogoPage() {
   const [syncPanel, setSyncPanel] = useState(false);
   const [welcomeModal, setWelcomeModal] = useState(false);
 
-  const recargar = useCallback(async (f: Filtro) => {
+  const [orden, setOrden] = useState<'ultima' | 'alfabetico' | 'calificacion'>('ultima');
+
+  const recargar = useCallback(async (f: Filtro, ord: string = orden) => {
     // Universo de tags disponibles (a partir del catálogo completo) para el filtro RF-014.
     const todas = await container.catalogo.buscar({});
     setTotal(todas.length);
     setTags([...new Set(todas.flatMap((o) => o.tags))].sort((a, b) => a.localeCompare(b, 'es')));
 
     const obras = await container.catalogo.buscar(f);
-    const filas = await Promise.all(
+    let filas = await Promise.all(
       obras.map(async (obra) => {
         const actual = await container.progreso.actual(obra.id);
         return { obra, capitulo: actual?.capitulo, ultima: actual?.registradoEn };
       }),
     );
+    
+    filas.sort((a, b) => {
+      if (ord === 'alfabetico') {
+        return a.obra.titulo.localeCompare(b.obra.titulo, 'es');
+      }
+      if (ord === 'calificacion') {
+        const calA = a.obra.calificacion || 0;
+        const calB = b.obra.calificacion || 0;
+        return calB - calA;
+      }
+      // por defecto: 'ultima'
+      const ultimaA = a.ultima || a.obra.actualizadaEn || a.obra.creadaEn;
+      const ultimaB = b.ultima || b.obra.actualizadaEn || b.obra.creadaEn;
+      return ultimaB.localeCompare(ultimaA);
+    });
+
     setFilas(filas);
     if (todas.length === 0) {
       setWelcomeModal(true);
     }
-  }, []);
+  }, [orden]);
 
   useIonViewWillEnter(() => { void recargar(filtro); });
 
@@ -53,6 +72,11 @@ export default function CatalogoPage() {
     const f = { ...filtro, ...patch };
     setFiltro(f);
     void recargar(f);
+  };
+
+  const aplicarOrden = (nuevoOrden: 'ultima' | 'alfabetico' | 'calificacion') => {
+    setOrden(nuevoOrden);
+    void recargar(filtro, nuevoOrden);
   };
 
   const crear = async (input: NuevaObra) => {
@@ -133,6 +157,11 @@ export default function CatalogoPage() {
               <IonSelectOption value="">Cualquiera</IonSelectOption>
               {ESTADOS_PUBLICACION.map((s) => <IonSelectOption key={s} value={s}>{s}</IonSelectOption>)}
             </IonSelect>
+            <IonSelect placeholder="Ordenar por" value={orden} onIonChange={(e) => aplicarOrden(e.detail.value)}>
+              <IonSelectOption value="ultima">Última lectura</IonSelectOption>
+              <IonSelectOption value="alfabetico">Alfabético</IonSelectOption>
+              <IonSelectOption value="calificacion">Calificación</IonSelectOption>
+            </IonSelect>
           </IonItem>
         </IonToolbar>
       </IonHeader>
@@ -165,10 +194,15 @@ export default function CatalogoPage() {
               <IonItem key={obra.id} button detail onClick={() => history.push(`/obra/${obra.id}`)}>
                 <IonLabel>
                   <h2>{obra.titulo}</h2>
-                  <p className="muted">
-                    {obra.tipo} · Cap. <span className="cap-actual">{capFmt(capitulo)}</span> · Última: {fechaCorta(ultima)}
-                    {obra.calificacion ? ` · ⭐ ${obra.calificacion}` : ''}
-                    {obra.autor ? ` · 👤 ${obra.autor}` : ''}
+                  <p className="muted" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                    <span>{obra.tipo} · Cap. <span className="cap-actual">{capFmt(capitulo)}</span> · Última: {fechaCorta(ultima)}</span>
+                    {obra.calificacion ? (
+                      <>
+                        <span> · </span>
+                        <StarRating value={obra.calificacion} readonly />
+                      </>
+                    ) : null}
+                    {obra.autor ? <span> · 👤 {obra.autor}</span> : null}
                   </p>
                   <div>
                     {obra.tags.slice(0, 3).map((t) => <IonChip key={t} outline>{t}</IonChip>)}
