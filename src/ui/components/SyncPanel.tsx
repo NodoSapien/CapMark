@@ -18,12 +18,41 @@ interface Props {
   onSyncCompleto?: () => void; // para que CatalogoPage recargue tras un pull
 }
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
 /**
  * Panel de sincronización con Google Drive (BYOS).
  * Maneja el ciclo completo: OAuth login → push/pull → logout.
  * La app sigue funcionando si el usuario no conecta: local-first (RNF-004).
  */
-export default function SyncPanel({ isOpen, onClose, onSyncCompleto }: Props) {
+export default function SyncPanel(props: Props) {
+  if (!GOOGLE_CLIENT_ID) {
+    return (
+      <IonModal isOpen={props.isOpen} onDidDismiss={props.onClose}>
+        <IonHeader>
+          <IonToolbar>
+            <IonTitle>Google Drive Sync</IonTitle>
+            <IonButtons slot="end">
+              <IonButton onClick={props.onClose}>Cerrar</IonButton>
+            </IonButtons>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding">
+          <IonItem lines="none" style={{ marginBottom: 8 }}>
+            <IonIcon icon={cloudOfflineOutline} color="medium" slot="start" />
+            <IonLabel><h2>No configurado</h2></IonLabel>
+          </IonItem>
+          <IonNote color="warning" style={{ display: 'block', padding: '16px', fontSize: 13 }}>
+            La sincronización en la nube no está habilitada. Falta configurar <strong>VITE_GOOGLE_CLIENT_ID</strong> en tu archivo <code>.env</code>.
+          </IonNote>
+        </IonContent>
+      </IonModal>
+    );
+  }
+  return <SyncPanelInner {...props} />;
+}
+
+function SyncPanelInner({ isOpen, onClose, onSyncCompleto }: Props) {
   const [estado, setEstado] = useState<EstadoSync>(
     container.sync.disponible() ? 'conectado' : 'desconectado',
   );

@@ -16,6 +16,7 @@ import { Obra } from '@domain/obra';
 import { ProgresoEntry } from '@domain/progreso';
 import { container } from '@infrastructure/container';
 import ObraFormModal from '@ui/components/ObraFormModal';
+import StarRating from '@ui/components/StarRating';
 import { capFmt, colorEstado, colorPrioridad, fechaCorta } from '@ui/format';
 
 export default function ObraDetallePage() {
@@ -201,7 +202,11 @@ export default function ObraDetallePage() {
           {obra.autor && <p style={{ margin: '4px 0' }}><strong>Autor:</strong> {obra.autor}</p>}
           {obra.artista && <p style={{ margin: '4px 0' }}><strong>Artista:</strong> {obra.artista}</p>}
           {obra.estadoPublicacion && <p style={{ margin: '4px 0' }}><strong>Publicación:</strong> <span style={{ textTransform: 'capitalize' }}>{obra.estadoPublicacion}</span></p>}
-          {obra.calificacion !== undefined && <p style={{ margin: '4px 0' }}><strong>Calificación:</strong> ⭐ {obra.calificacion}</p>}
+          {obra.calificacion !== undefined && (
+            <div style={{ margin: '4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <strong>Calificación:</strong> <StarRating value={obra.calificacion} readonly />
+            </div>
+          )}
         </div>
 
         {relacionadas.length > 0 && (

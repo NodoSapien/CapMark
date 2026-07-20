@@ -8,6 +8,7 @@ import { NuevaObra } from '@application/ports';
 import { Obra } from '@domain/obra';
 import { ESTADOS_OBRA, PRIORIDADES, TIPOS_OBRA, ESTADOS_PUBLICACION } from '@domain/types';
 import { container } from '@infrastructure/container';
+import StarRating from '@ui/components/StarRating';
 
 interface Props {
   isOpen: boolean;
@@ -260,17 +261,10 @@ export default function ObraFormModal({ isOpen, obra, onClose, onSave }: Props) 
             </IonItem>
 
             <IonItem>
-              <IonLabel position="stacked">Calificación (0 a 5)</IonLabel>
-              <IonInput
-                type="number"
-                step="0.5"
-                min="0"
-                max="5"
-                value={form.calificacion ?? ''}
-                onIonInput={(e) => {
-                  const val = e.detail.value;
-                  setField({ calificacion: val ? parseFloat(val) : undefined });
-                }}
+              <IonLabel position="stacked" style={{ marginBottom: '8px' }}>Calificación (0 a 5)</IonLabel>
+              <StarRating
+                value={form.calificacion ?? 0}
+                onChange={(val) => setField({ calificacion: val || undefined })}
               />
             </IonItem>
 
