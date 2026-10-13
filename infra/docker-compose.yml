@@ -14,7 +14,7 @@ services:
     ports:
       - '${BIND_ADDRESS:-127.0.0.1}:5432:5432'
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}'
       POSTGRES_DB: postgres
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
@@ -37,10 +37,10 @@ services:
       db:
         condition: service_healthy
     environment:
-      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}@db:5432/postgres
+      PGRST_DB_URI: 'postgres://authenticator:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}@db:5432/postgres'
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${JWT_SECRET:?Error: JWT_SECRET es obligatorio}
+      PGRST_JWT_SECRET: '${JWT_SECRET:?Error: JWT_SECRET es obligatorio}'
 
   # Autenticación (GoTrue): cuentas y sesiones (RF-015, RNF-006).
   auth:
@@ -56,10 +56,10 @@ services:
       PORT: 9999
       API_EXTERNAL_URL: http://localhost:9999
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}@db:5432/postgres
+      GOTRUE_DB_DATABASE_URL: 'postgres://supabase_auth_admin:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}@db:5432/postgres'
       GOTRUE_SITE_URL: http://localhost:5173
       GOTRUE_URI_ALLOW_LIST: '*'
-      GOTRUE_JWT_SECRET: ${JWT_SECRET:?Error: JWT_SECRET es obligatorio}
+      GOTRUE_JWT_SECRET: '${JWT_SECRET:?Error: JWT_SECRET es obligatorio}'
       GOTRUE_JWT_EXP: 3600
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
@@ -84,9 +84,9 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: supabase_admin
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}
+      DB_PASSWORD: '${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}'
       DB_NAME: postgres
-      API_JWT_SECRET: ${JWT_SECRET:?Error: JWT_SECRET es obligatorio}
+      API_JWT_SECRET: '${JWT_SECRET:?Error: JWT_SECRET es obligatorio}'
 
   # Edge Functions (Deno): verificación de links y proxy del scraper (RF-017, RNF-008).
   # Requiere un router `main` (falta); no es necesario para backup/restore.

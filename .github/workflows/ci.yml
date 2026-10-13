@@ -13,8 +13,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -39,16 +37,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configurar entorno con secretos de prueba
+        run: |
+          cp .env.example .env
+          sed -i 's|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=ci_test_password_12345|' .env
+          sed -i 's|^JWT_SECRET=.*|JWT_SECRET=ci_test_jwt_secret_with_32_characters_minimum|' .env
+
       - name: Iniciar PostgreSQL
-        run: docker compose --env-file .env.example -f infra/docker-compose.yml up -d db
+        run: docker compose --env-file .env -f infra/docker-compose.yml up -d db
 
       - name: Ejecutar smoke test de base de datos
         run: ./scripts/smoke-test-db.sh
 
       - name: Volcar logs de base de datos si falla
         if: failure()
-        run: docker compose --env-file .env.example -f infra/docker-compose.yml logs db
+        run: docker compose --env-file .env -f infra/docker-compose.yml logs db
 
       - name: Desmontar backend y volúmenes
         if: always()
-        run: docker compose --env-file .env.example -f infra/docker-compose.yml down -v
+        run: docker compose --env-file .env -f infra/docker-compose.yml down -v
