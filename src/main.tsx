@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { setupIonicReact } from '@ionic/react';
 import App from '@ui/App';
+import { container as appContainer } from '@infrastructure/container';
 
 /* Estilos base de Ionic */
 import '@ionic/react/css/core.css';
@@ -16,9 +17,17 @@ import '@ui/theme.css';
 
 setupIonicReact();
 
-const container = document.getElementById('root');
-createRoot(container!).render(
+const root = document.getElementById('root');
+createRoot(root!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
 );
+
+// Expone el container en window para debugging/testing desde la consola del navegador.
+declare global {
+  interface Window {
+    capmark: typeof appContainer;
+  }
+}
+window.capmark = appContainer;
