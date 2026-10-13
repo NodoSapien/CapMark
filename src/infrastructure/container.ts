@@ -25,23 +25,45 @@ export const container = {
   sync: new SupabaseSync(),
 
   // Helper para development: importa datos desde la BD Postgres vía REST.
-  // Uso desde consola del navegador: await capmark.importFromPostgres()
-  async importFromPostgres(token?: string) {
+  // Uso desde consola del navegador:
+  // await capmark.importFromPostgres({ token: '...' }) o await capmark.importFromPostgres({ email: '...', password: '...' })
+  async importFromPostgres(options?: {
+    token?: string;
+    email?: string;
+    password?: string;
+    authUrl?: string;
+    restUrl?: string;
+  }) {
+    let token = options?.token;
+    const authUrl = options?.authUrl || 'http://localhost:9999';
+    const restUrl = options?.restUrl || 'http://localhost:3000';
+
     if (!token) {
-      console.log('Obteniendo token de bulk@capmark.local...');
-      const loginRes = await fetch('http://localhost:9999/token?grant_type=password', {
+      if (!options?.email || !options?.password) {
+        throw new Error(
+          'Se requiere token o credenciales ({ email, password }) para importar desde Postgres.',
+        );
+      }
+      console.log(`Obteniendo token para ${options.email}...`);
+      const loginRes = await fetch(`${authUrl}/token?grant_type=password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'bulk@capmark.local', password: 'bulk-import-123456' }),
+        body: JSON.stringify({ email: options.email, password: options.password }),
       });
-      const { access_token } = await loginRes.json();
-      token = access_token;
+      if (!loginRes.ok) {
+        throw new Error(`Fallo de autenticación: ${loginRes.status} ${loginRes.statusText}`);
+      }
+      const data = await loginRes.json();
+      token = data.access_token;
     }
 
     console.log('Leyendo obras de Postgres...');
-    const obrasRes = await fetch('http://localhost:3000/obra', {
+    const obrasRes = await fetch(`${restUrl}/obra`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    if (!obrasRes.ok) {
+      throw new Error(`Fallo al leer obras: ${obrasRes.status} ${obrasRes.statusText}`);
+    }
     const obras = await obrasRes.json();
 
     // Formato de backup requerido por BackupService
