@@ -5,11 +5,11 @@ Backend de sincronización **opcional y auto-instanciable** (Supabase self-hoste
 
 ## Comandos
 
-- `npm run dev` — app (Vite, http://localhost:5173)
-- `npm test` — Vitest (`src/**/*.test.ts`)
-- `npm run typecheck` — `tsc --noEmit`
-- `npm run build` — typecheck + build
-- `npm run bootstrap` — levanta el backend con secretos + migraciones (no manual)
+- `pnpm run dev` — app (Vite, http://localhost:5173)
+- `pnpm test` — Vitest (`src/**/*.test.ts`)
+- `pnpm run typecheck` — `tsc --noEmit`
+- `pnpm run build` — typecheck + build
+- `pnpm run bootstrap` — levanta el backend con secretos + migraciones (no manual)
 - `make check` — lo que corre CI (typecheck + test + build)
 
 ## Arquitectura por capas (respetar RNF-009)

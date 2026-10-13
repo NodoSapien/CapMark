@@ -7,10 +7,10 @@ do $$ begin
   if not exists (select from pg_roles where rolname = 'anon') then create role anon nologin; end if;
   if not exists (select from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
   if not exists (select from pg_roles where rolname = 'authenticator') then
-    create role authenticator login password 'postgres' noinherit;
+    create role authenticator login noinherit;
   end if;
   if not exists (select from pg_roles where rolname = 'supabase_auth_admin') then
-    create role supabase_auth_admin login password 'postgres' createrole;
+    create role supabase_auth_admin login createrole;
   end if;
 end $$;
 grant anon, authenticated to authenticator;

@@ -12,9 +12,9 @@ services:
     image: supabase/postgres:15.1.1.78
     restart: unless-stopped
     ports:
-      - '5432:5432'
+      - '${BIND_ADDRESS:-127.0.0.1}:5432:5432'
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}'
       POSTGRES_DB: postgres
     volumes:
       - ./volumes/db:/var/lib/postgresql/data
@@ -32,22 +32,22 @@ services:
     image: postgrest/postgrest:v12.2.3
     restart: unless-stopped
     ports:
-      - '3000:3000' # http://localhost:3000/obra , /fuente , /progreso
+      - '${BIND_ADDRESS:-127.0.0.1}:3000:3000' # http://localhost:3000/obra , /fuente , /progreso
     depends_on:
       db:
         condition: service_healthy
     environment:
-      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      PGRST_DB_URI: 'postgres://authenticator:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}@db:5432/postgres'
       PGRST_DB_SCHEMAS: public
       PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
+      PGRST_JWT_SECRET: '${JWT_SECRET:?Error: JWT_SECRET es obligatorio}'
 
   # Autenticación (GoTrue): cuentas y sesiones (RF-015, RNF-006).
   auth:
     image: supabase/gotrue:v2.158.1
     restart: unless-stopped
     ports:
-      - '9999:9999' # http://localhost:9999  (signup/login → JWT)
+      - '${BIND_ADDRESS:-127.0.0.1}:9999:9999' # http://localhost:9999  (signup/login → JWT)
     depends_on:
       db:
         condition: service_healthy
@@ -56,10 +56,10 @@ services:
       PORT: 9999
       API_EXTERNAL_URL: http://localhost:9999
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      GOTRUE_DB_DATABASE_URL: 'postgres://supabase_auth_admin:${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}@db:5432/postgres'
       GOTRUE_SITE_URL: http://localhost:5173
       GOTRUE_URI_ALLOW_LIST: '*'
-      GOTRUE_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
+      GOTRUE_JWT_SECRET: '${JWT_SECRET:?Error: JWT_SECRET es obligatorio}'
       GOTRUE_JWT_EXP: 3600
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
@@ -84,9 +84,9 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: supabase_admin
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_PASSWORD: '${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD es obligatorio}'
       DB_NAME: postgres
-      API_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-chars}
+      API_JWT_SECRET: '${JWT_SECRET:?Error: JWT_SECRET es obligatorio}'
 
   # Edge Functions (Deno): verificación de links y proxy del scraper (RF-017, RNF-008).
   # Requiere un router `main` (falta); no es necesario para backup/restore.
@@ -96,7 +96,10 @@ services:
     profiles: ['full']
     restart: unless-stopped
     ports:
-      - '8000:9000'
+      - '${BIND_ADDRESS:-127.0.0.1}:8000:9000'
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-}
+      ANON_KEY: ${ANON_KEY:-}
     volumes:
       - ./functions:/home/deno/functions:ro
     command: ['start', '--main-service', '/home/deno/functions']

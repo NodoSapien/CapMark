@@ -19,17 +19,9 @@ export class CapMarkDB extends Dexie {
       fuentes: 'id, obraId, esPrincipal',
       progreso: 'id, obraId, registradoEn',
     });
-    // v2: agrega campo url? en obras (campo opcional, sin índice; Dexie lo persiste automáticamente)
     this.version(2).stores({
-      obras: 'id, titulo, tipo, estado, prioridad, actualizadaEn',
-      fuentes: 'id, obraId, esPrincipal',
-      progreso: 'id, obraId, registradoEn',
-    });
-    // v3: nuevos campos opcionales autor, artista, estadoPublicacion, calificacion, obrasRelacionadas
-    this.version(3).stores({
-      obras: 'id, titulo, tipo, estado, prioridad, actualizadaEn',
-      fuentes: 'id, obraId, esPrincipal',
-      progreso: 'id, obraId, registradoEn',
+      obras: 'id, titulo, estado, prioridad, actualizadaEn, *tags',
+      progreso: 'id, obraId, registradoEn, [obraId+registradoEn]',
     });
   }
 }

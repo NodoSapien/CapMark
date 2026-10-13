@@ -17,9 +17,15 @@ export class HttpLinkVerifier implements LinkVerifier {
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
       if (this.edgeFnUrl) {
+        const headers: Record<string, string> = { 'content-type': 'application/json' };
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+        if (anonKey) {
+          headers['apikey'] = anonKey;
+          headers['authorization'] = `Bearer ${anonKey}`;
+        }
         const res = await fetch(this.edgeFnUrl, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers,
           body: JSON.stringify({ url }),
           signal: ctrl.signal,
         });

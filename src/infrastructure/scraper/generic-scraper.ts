@@ -17,7 +17,13 @@ export class GenericScraper implements SourceScraper {
 
   async detectar(url: string): Promise<PropuestaCapitulo | undefined> {
     const target = this.proxy ? `${this.proxy}?url=${encodeURIComponent(url)}` : url;
-    const res = await fetch(target, { headers: { accept: 'text/html' } });
+    const headers: Record<string, string> = { accept: 'text/html' };
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+    if (this.proxy && anonKey) {
+      headers['apikey'] = anonKey;
+      headers['authorization'] = `Bearer ${anonKey}`;
+    }
+    const res = await fetch(target, { headers });
     if (!res.ok) return undefined;
     const html = await res.text();
     return extraerCapitulo(html, url);
