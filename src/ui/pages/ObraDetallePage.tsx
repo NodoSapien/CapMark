@@ -2,12 +2,12 @@ import { useState } from 'react';
 import {
   IonBackButton, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader,
   IonCardSubtitle, IonCardTitle, IonChip, IonContent, IonHeader, IonIcon, IonItem, IonLabel,
-  IonList, IonListHeader, IonNote, IonPage, IonText, IonTitle, IonToolbar, useIonAlert,
-  useIonToast, useIonViewWillEnter,
+  IonList, IonListHeader, IonNote, IonPage, IonSpinner, IonText, IonTitle, IonToolbar,
+  useIonViewWillEnter,
 } from '@ionic/react';
 import {
   addCircleOutline, checkmarkCircle, createOutline, openOutline, refreshOutline,
-  searchCircleOutline, star, starOutline, trashOutline,
+  searchCircleOutline, star, starOutline, trashOutline, alertCircleOutline,
 } from 'ionicons/icons';
 import { useHistory, useParams } from 'react-router-dom';
 import { NuevaObra } from '@application/ports';
@@ -17,32 +17,54 @@ import { ProgresoEntry } from '@domain/progreso';
 import { container } from '@infrastructure/container';
 import ObraFormModal from '@ui/components/ObraFormModal';
 import { capFmt, colorEstado, colorPrioridad, fechaCorta } from '@ui/format';
+import { useFeedback } from '@ui/hooks/useFeedback';
 
 export default function ObraDetallePage() {
   const { id } = useParams<{ id: string }>();
   const history = useHistory();
-  const [presentAlert] = useIonAlert();
-  const [toast] = useIonToast();
+  const { presentAlert, toastError, toastAviso, ejecutarAccion } = useFeedback();
 
   const [obra, setObra] = useState<Obra>();
   const [fuentes, setFuentes] = useState<Fuente[]>([]);
   const [historial, setHistorial] = useState<ProgresoEntry[]>([]);
   const [editar, setEditar] = useState(false);
+  const [estadoCarga, setEstadoCarga] = useState<'cargando' | 'ok' | 'no-encontrada' | 'error'>('cargando');
 
   const cargar = async () => {
-    setObra(await container.catalogo.obtener(id));
-    setFuentes(await container.fuentes.listar(id));
-    setHistorial(await container.progreso.historial(id));
+    try {
+      const encontrada = await container.catalogo.obtener(id);
+      if (!encontrada) {
+        setEstadoCarga('no-encontrada');
+        return;
+      }
+      setObra(encontrada);
+      setFuentes(await container.fuentes.listar(id));
+      setHistorial(await container.progreso.historial(id));
+      setEstadoCarga('ok');
+    } catch (err: unknown) {
+      console.error('Error al cargar detalle de obra:', err);
+      setEstadoCarga('error');
+      toastError('No se pudo cargar la obra.');
+    }
   };
-  useIonViewWillEnter(() => { void cargar(); });
+
+  useIonViewWillEnter(() => {
+    setEstadoCarga('cargando');
+    void cargar();
+  });
 
   const actual = historial[0];
 
   // RNF-002: actualizar capítulo en ≤ 3 toques (botón +1 = 1 toque).
   const avanzar = async (delta: number) => {
-    const base = actual?.capitulo ?? 0;
-    await container.progreso.registrar(id, { capitulo: Math.max(0, base + delta) });
-    await cargar();
+    await ejecutarAccion(
+      async () => {
+        const base = actual?.capitulo ?? 0;
+        await container.progreso.registrar(id, { capitulo: Math.max(0, base + delta) });
+        await cargar();
+      },
+      { mensajeExito: delta > 0 ? '+1 capítulo registrado' : 'Capítulo actualizado' },
+    );
   };
 
   const fijarCapitulo = () =>
@@ -57,16 +79,29 @@ export default function ObraDetallePage() {
         {
           text: 'Guardar',
           handler: async (d) => {
-            await container.progreso.registrar(id, { capitulo: Number.parseFloat(d.capitulo), punto: d.punto });
-            await cargar();
+            const num = Number.parseFloat(d.capitulo);
+            if (Number.isNaN(num) || num < 0) {
+              toastError('El capítulo debe ser un número válido mayor o igual a 0.');
+              return false;
+            }
+            await ejecutarAccion(async () => {
+              await container.progreso.registrar(id, { capitulo: num, punto: d.punto });
+              await cargar();
+            });
+            return true;
           },
         },
       ],
     });
 
   const guardarEdicion = async (input: NuevaObra) => {
-    await container.catalogo.editar(id, input);
-    await cargar();
+    await ejecutarAccion(
+      async () => {
+        await container.catalogo.editar(id, input);
+        await cargar();
+      },
+      { mensajeExito: 'Obra actualizada correctamente' },
+    );
   };
 
   const eliminarObra = () =>
@@ -79,8 +114,13 @@ export default function ObraDetallePage() {
           text: 'Eliminar',
           role: 'destructive',
           handler: async () => {
-            await container.catalogo.eliminar(id);
-            history.replace('/catalogo');
+            await ejecutarAccion(
+              async () => {
+                await container.catalogo.eliminar(id);
+                history.replace('/catalogo');
+              },
+              { mensajeExito: 'Obra eliminada del catálogo' },
+            );
           },
         },
       ],
@@ -98,53 +138,142 @@ export default function ObraDetallePage() {
         {
           text: 'Agregar',
           handler: async (d) => {
-            try {
-              setFuentes(await container.fuentes.agregar(id, { nombreEnSitio: d.nombre, url: d.url }));
-            } catch (e) {
-              toast({ message: e instanceof Error ? e.message : 'URL inválida', duration: 2500, color: 'danger' });
+            if (!d.nombre || !d.url) {
+              toastError('El nombre y la URL son obligatorios.');
+              return false;
             }
+            await ejecutarAccion(
+              async () => {
+                const nuevas = await container.fuentes.agregar(id, { nombreEnSitio: d.nombre, url: d.url });
+                setFuentes(nuevas);
+              },
+              { mensajeExito: 'Fuente agregada' },
+            );
+            return true;
           },
         },
       ],
     });
 
   const verificar = async (f: Fuente) => {
-    toast({ message: `Verificando ${f.nombreEnSitio}…`, duration: 1200 });
-    setFuentes(await container.fuentes.verificar(id, f.id));
+    toastAviso(`Verificando ${f.nombreEnSitio}…`);
+    await ejecutarAccion(async () => {
+      const actualizadas = await container.fuentes.verificar(id, f.id);
+      setFuentes(actualizadas);
+    });
   };
 
   // Scraper OPT-IN: propone y el usuario confirma antes de registrar (semi-asistido, S2).
   const detectar = async (f: Fuente) => {
-    toast({ message: 'Leyendo la fuente…', duration: 1200 });
-    const p = await container.scraper.detectar(f.url).catch(() => undefined);
-    if (!p) {
-      toast({ message: 'No se pudo detectar el capítulo en esa fuente.', duration: 2500, color: 'warning' });
-      return;
-    }
-    presentAlert({
-      header: 'Capítulo detectado',
-      message: `Propuesta: capítulo ${capFmt(p.capitulo)} (confianza ${p.confianza}${p.etiqueta ? `, "${p.etiqueta}"` : ''}). ¿Registrarlo como tu punto actual?`,
-      buttons: [
-        'Descartar',
-        {
-          text: 'Registrar',
-          handler: async () => {
-            await container.progreso.registrar(id, { capitulo: p.capitulo });
-            await cargar();
+    toastAviso('Leyendo la fuente…');
+    await ejecutarAccion(async () => {
+      const p = await container.scraper.detectar(f.url);
+      if (!p) {
+        toastAviso('No se pudo detectar el capítulo en esa fuente.');
+        return;
+      }
+      presentAlert({
+        header: 'Capítulo detectado',
+        message: `Propuesta: capítulo ${capFmt(p.capitulo)} (confianza ${p.confianza}${p.etiqueta ? `, "${p.etiqueta}"` : ''}). ¿Registrarlo como tu punto actual?`,
+        buttons: [
+          'Descartar',
+          {
+            text: 'Registrar',
+            handler: async () => {
+              await ejecutarAccion(
+                async () => {
+                  await container.progreso.registrar(id, { capitulo: p.capitulo });
+                  await cargar();
+                },
+                { mensajeExito: 'Progreso actualizado' },
+              );
+            },
           },
-        },
-      ],
+        ],
+      });
     });
   };
 
-  const marcarPrincipal = async (f: Fuente) => setFuentes(await container.fuentes.marcarPrincipal(id, f.id));
-  const eliminarFuente = async (f: Fuente) => setFuentes(await container.fuentes.eliminar(id, f.id));
+  const marcarPrincipal = async (f: Fuente) => {
+    await ejecutarAccion(async () => {
+      const actualizadas = await container.fuentes.marcarPrincipal(id, f.id);
+      setFuentes(actualizadas);
+    });
+  };
+
+  const eliminarFuente = async (f: Fuente) => {
+    await ejecutarAccion(
+      async () => {
+        const actualizadas = await container.fuentes.eliminar(id, f.id);
+        setFuentes(actualizadas);
+      },
+      { mensajeExito: 'Fuente eliminada' },
+    );
+  };
+
   const abrir = (f: Fuente) => window.open(f.url, '_blank', 'noopener');
 
-  if (!obra) {
+  if (estadoCarga === 'cargando') {
     return (
       <IonPage>
-        <IonContent className="ion-padding"><p className="muted">Cargando…</p></IonContent>
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start"><IonBackButton defaultHref="/catalogo" /></IonButtons>
+            <IonTitle>Cargando…</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding ion-text-center">
+          <div style={{ marginTop: '30vh' }}>
+            <IonSpinner />
+            <p className="muted">Cargando datos de la obra…</p>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (estadoCarga === 'no-encontrada' || !obra) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start"><IonBackButton defaultHref="/catalogo" /></IonButtons>
+            <IonTitle>No encontrada</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding ion-text-center">
+          <div style={{ marginTop: '25vh' }}>
+            <IonIcon icon={alertCircleOutline} color="warning" style={{ fontSize: '56px' }} />
+            <h2>Obra no encontrada</h2>
+            <p className="muted">La obra solicitada no existe en tu catálogo o fue eliminada.</p>
+            <IonButton fill="outline" onClick={() => history.replace('/catalogo')}>
+              Volver al catálogo
+            </IonButton>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (estadoCarga === 'error') {
+    return (
+      <IonPage>
+        <IonHeader>
+          <IonToolbar>
+            <IonButtons slot="start"><IonBackButton defaultHref="/catalogo" /></IonButtons>
+            <IonTitle>Error</IonTitle>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent className="ion-padding ion-text-center">
+          <div style={{ marginTop: '25vh' }}>
+            <IonIcon icon={alertCircleOutline} color="danger" style={{ fontSize: '56px' }} />
+            <h2>No se pudo cargar la información</h2>
+            <p className="muted">Ocurrió un problema de almacenamiento o lectura de datos.</p>
+            <IonButton fill="solid" onClick={() => void cargar()}>
+              Reintentar
+            </IonButton>
+          </div>
+        </IonContent>
       </IonPage>
     );
   }
@@ -185,7 +314,7 @@ export default function ObraDetallePage() {
             <IonNote>Última lectura: {fechaCorta(actual?.registradoEn)}</IonNote>
           </IonCardHeader>
           <IonCardContent>
-            <IonButton onClick={() => avanzar(1)}>+1 capítulo</IonButton>
+            <IonButton onClick={() => void avanzar(1)}>+1 capítulo</IonButton>
             <IonButton fill="outline" onClick={fijarCapitulo}>Fijar…</IonButton>
           </IonCardContent>
         </IonCard>
@@ -203,7 +332,7 @@ export default function ObraDetallePage() {
                 slot="start"
                 icon={f.esPrincipal ? star : starOutline}
                 color={f.esPrincipal ? 'warning' : 'medium'}
-                onClick={() => marcarPrincipal(f)}
+                onClick={() => void marcarPrincipal(f)}
                 title="Marcar principal"
               />
               <IonLabel>
@@ -214,10 +343,10 @@ export default function ObraDetallePage() {
                 </p>
               </IonLabel>
               <IonButtons slot="end">
-                <IonButton onClick={() => detectar(f)} title="Detectar capítulo (opt-in)"><IonIcon slot="icon-only" icon={searchCircleOutline} /></IonButton>
-                <IonButton onClick={() => verificar(f)} title="Verificar link"><IonIcon slot="icon-only" icon={refreshOutline} /></IonButton>
+                <IonButton onClick={() => void detectar(f)} title="Detectar capítulo (opt-in)"><IonIcon slot="icon-only" icon={searchCircleOutline} /></IonButton>
+                <IonButton onClick={() => void verificar(f)} title="Verificar link"><IonIcon slot="icon-only" icon={refreshOutline} /></IonButton>
                 <IonButton onClick={() => abrir(f)} title="Abrir"><IonIcon slot="icon-only" icon={openOutline} /></IonButton>
-                <IonButton color="danger" onClick={() => eliminarFuente(f)}><IonIcon slot="icon-only" icon={trashOutline} /></IonButton>
+                <IonButton color="danger" onClick={() => void eliminarFuente(f)}><IonIcon slot="icon-only" icon={trashOutline} /></IonButton>
               </IonButtons>
             </IonItem>
           ))}

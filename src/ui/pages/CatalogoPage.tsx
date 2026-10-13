@@ -13,6 +13,7 @@ import { ESTADOS_OBRA, PRIORIDADES } from '@domain/types';
 import { container } from '@infrastructure/container';
 import ObraFormModal from '@ui/components/ObraFormModal';
 import { capFmt, colorEstado, colorPrioridad, fechaCorta } from '@ui/format';
+import { useFeedback } from '@ui/hooks/useFeedback';
 import { sembrarDemo } from '@ui/seed';
 
 const LIMITE_PAGINA = 20;
@@ -23,6 +24,7 @@ type EstadoSync = 'local' | 'comprobando' | 'conectado' | 'sin-conexion';
 
 export default function CatalogoPage() {
   const history = useHistory();
+  const { toastError, toastExito } = useFeedback();
   const [filtro, setFiltro] = useState<Filtro>({});
   const [filas, setFilas] = useState<ItemCatalogo[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -106,8 +108,9 @@ export default function CatalogoPage() {
       await container.backup.importar(backup);
       await cargarTags();
       await recargar(filtro);
+      toastExito('Copia de seguridad importada con éxito.');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo importar el archivo.');
+      toastError(e instanceof Error ? e.message : 'No se pudo importar el archivo.');
     }
   };
 
