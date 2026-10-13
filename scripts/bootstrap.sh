@@ -26,7 +26,7 @@ fi
 
 # 2. Verifica docker.
 if ! command -v docker >/dev/null 2>&1; then
-  echo "✗ Docker no está instalado. La app web funciona igual con: npm install && npm run dev"
+  echo "✗ Docker no está instalado. La app web funciona igual con: pnpm install && pnpm run dev"
   exit 0
 fi
 
@@ -58,4 +58,4 @@ SQL
 
 echo "✓ Listo."
 echo "  · REST (backup/restore): http://localhost:3000   · Auth: http://localhost:9999   · Postgres: localhost:5432"
-echo "  · App:  npm install && npm run dev   (http://localhost:5173)"
+echo "  · App:  pnpm install && pnpm run dev   (http://localhost:5173)"

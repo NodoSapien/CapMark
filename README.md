@@ -21,8 +21,8 @@ su **capítulo actual con historial**, su **estado** y su **prioridad**.
 ## Arranque rápido (app, sin backend)
 
 ```bash
-npm install
-npm run dev        # http://localhost:5173
+pnpm install
+pnpm run dev        # http://localhost:5173
 ```
 
 La app persiste en el navegador (IndexedDB). Pulsa **"Cargar datos de ejemplo"** para probarla.
@@ -33,21 +33,21 @@ No hay que configurar nada a mano. Un comando genera secretos, levanta Postgres 
 Realtime + Edge Functions y **aplica las migraciones solo**:
 
 ```bash
-./scripts/bootstrap.sh      # o: npm run bootstrap
+./scripts/bootstrap.sh      # o: pnpm run bootstrap
 ```
 
-Luego rellena en `.env` las claves que imprime el arranque y reinicia `npm run dev`.
-Parar: `npm run backend:down`.
+Luego rellena en `.env` las claves que imprime el arranque y reinicia `pnpm run dev`.
+Parar: `pnpm run backend:down`.
 
 Requisitos: Docker (con Compose) y OpenSSL. Ver `infra/` y `.env.example`.
 
 ## Móvil (Capacitor)
 
 ```bash
-npm run build
-npx cap add android      # y/o: npx cap add ios
-npx cap sync
-npx cap open android
+pnpm run build
+pnpm dlx cap add android      # y/o: pnpm dlx cap add ios
+pnpm dlx cap sync
+pnpm dlx cap open android
 ```
 
 ## Arquitectura (separación por capas — RNF-009)
@@ -67,11 +67,11 @@ El dominio no importa infraestructura: el backend de sync es sustituible sin toc
 
 | Comando | Qué hace |
 |---------|----------|
-| `npm run dev` | App en desarrollo (Vite) |
-| `npm run build` | Typecheck + build de producción |
-| `npm test` | Tests unitarios (Vitest) |
-| `npm run bootstrap` | Auto-instancia el backend |
-| `npm run backend:up` / `:down` / `:logs` | Controla el backend |
+| `pnpm run dev` | App en desarrollo (Vite) |
+| `pnpm run build` | Typecheck + build de producción |
+| `pnpm test` | Tests unitarios (Vitest) |
+| `pnpm run bootstrap` | Auto-instancia el backend |
+| `pnpm run backend:up` / `:down` / `:logs` | Controla el backend |
 
 ## Documentación
 
