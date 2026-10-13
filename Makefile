@@ -1,4 +1,4 @@
-.PHONY: help install dev build test check bootstrap up down logs
+.PHONY: help install dev build test check bootstrap up down logs smoke-db
 
 help:            ## Muestra esta ayuda
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -14,6 +14,9 @@ build:           ## Typecheck + build de producción
 
 test:            ## Tests unitarios
 	pnpm test
+
+smoke-db:        ## Smoke test de base de datos (Postgres + migraciones)
+	./scripts/smoke-test-db.sh
 
 check:           ## Typecheck + tests + build (lo que corre CI)
 	pnpm run typecheck && pnpm test && pnpm run build

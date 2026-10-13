@@ -2,6 +2,7 @@
   "name": "capmark",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.33.3",
   "description": "Gestor de Lecturas — tracker multiplataforma de manga/manhua/novelas (local-first, backend auto-instanciable)",
   "type": "module",
   "scripts": {
@@ -11,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke-db": "bash scripts/smoke-test-db.sh",
     "bootstrap": "bash scripts/bootstrap.sh",
     "backend:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d",
     "backend:down": "docker compose -f infra/docker-compose.yml down",

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 jobs:
@@ -10,24 +10,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm run typecheck
+
       - name: Tests
-        run: npm test
+        run: pnpm test
+
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
   backend-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validar compose y migraciones
-        run: |
-          docker compose -f infra/docker-compose.yml config >/dev/null
-          test -f infra/migrations/0001_init.sql
-          echo "Compose y migraciones OK"
+
+      - name: Iniciar PostgreSQL
+        run: docker compose --env-file .env.example -f infra/docker-compose.yml up -d db
+
+      - name: Ejecutar smoke test de base de datos
+        run: ./scripts/smoke-test-db.sh
+
+      - name: Volcar logs de base de datos si falla
+        if: failure()
+        run: docker compose --env-file .env.example -f infra/docker-compose.yml logs db
+
+      - name: Desmontar backend y volúmenes
+        if: always()
+        run: docker compose --env-file .env.example -f infra/docker-compose.yml down -v
