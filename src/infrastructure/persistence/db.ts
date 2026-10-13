@@ -19,6 +19,10 @@ export class CapMarkDB extends Dexie {
       fuentes: 'id, obraId, esPrincipal',
       progreso: 'id, obraId, registradoEn',
     });
+    this.version(2).stores({
+      obras: 'id, titulo, estado, prioridad, actualizadaEn, *tags',
+      progreso: 'id, obraId, registradoEn, [obraId+registradoEn]',
+    });
   }
 }
 

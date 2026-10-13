@@ -1,22 +1,21 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   IonBadge, IonButton, IonButtons, IonChip, IonContent, IonFab, IonFabButton, IonHeader,
-  IonIcon, IonItem, IonLabel, IonList, IonNote, IonPage, IonSearchbar, IonSelect,
-  IonSelectOption, IonTitle, IonToolbar, useIonViewWillEnter,
+  IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonItem, IonLabel, IonList,
+  IonNote, IonPage, IonSearchbar, IonSelect, IonSelectOption, IonTitle, IonToolbar,
+  useIonViewWillEnter,
 } from '@ionic/react';
 import { add, cloudOfflineOutline, cloudDoneOutline, downloadOutline, folderOpenOutline } from 'ionicons/icons';
-import { useRef } from 'react';
 import { useHistory } from 'react-router-dom';
-import { Filtro } from '@application/catalogo-service';
+import { Filtro, ItemCatalogo } from '@application/catalogo-service';
 import { NuevaObra } from '@application/ports';
-import { Obra } from '@domain/obra';
 import { ESTADOS_OBRA, PRIORIDADES } from '@domain/types';
 import { container } from '@infrastructure/container';
 import ObraFormModal from '@ui/components/ObraFormModal';
 import { capFmt, colorEstado, colorPrioridad, fechaCorta } from '@ui/format';
 import { sembrarDemo } from '@ui/seed';
 
-interface Fila { obra: Obra; capitulo?: number; ultima?: string; }
+const LIMITE_PAGINA = 20;
 
 // Estado de sincronización de cara al usuario. La app siempre funciona en local (RNF-004);
 // esto solo informa si además hay un backend y si responde.
@@ -25,9 +24,11 @@ type EstadoSync = 'local' | 'comprobando' | 'conectado' | 'sin-conexion';
 export default function CatalogoPage() {
   const history = useHistory();
   const [filtro, setFiltro] = useState<Filtro>({});
-  const [filas, setFilas] = useState<Fila[]>([]);
+  const [filas, setFilas] = useState<ItemCatalogo[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
+  const [pagina, setPagina] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
   const [modal, setModal] = useState(false);
   const [sync, setSync] = useState<EstadoSync>(
     container.sync.disponible() ? 'comprobando' : 'local',
@@ -40,23 +41,38 @@ export default function CatalogoPage() {
     setSync((await container.sync.probarConexion()) ? 'conectado' : 'sin-conexion');
   }, []);
 
-  const recargar = useCallback(async (f: Filtro) => {
-    // Universo de tags disponibles (a partir del catálogo completo) para el filtro RF-014.
-    const todas = await container.catalogo.buscar({});
-    setTotal(todas.length);
-    setTags([...new Set(todas.flatMap((o) => o.tags))].sort((a, b) => a.localeCompare(b, 'es')));
-
-    const obras = await container.catalogo.buscar(f);
-    const filas = await Promise.all(
-      obras.map(async (obra) => {
-        const actual = await container.progreso.actual(obra.id);
-        return { obra, capitulo: actual?.capitulo, ultima: actual?.registradoEn };
-      }),
-    );
-    setFilas(filas);
+  const cargarTags = useCallback(async () => {
+    const lista = await container.catalogo.listarTags();
+    setTags(lista);
   }, []);
 
-  useIonViewWillEnter(() => { void recargar(filtro); void comprobarSync(); });
+  const recargar = useCallback(async (f: Filtro) => {
+    const res = await container.catalogo.listarPagina(f, { pagina: 1, limite: LIMITE_PAGINA });
+    setFilas(res.items);
+    setTotal(res.total);
+    setPagina(1);
+    setTotalPaginas(res.totalPaginas);
+  }, []);
+
+  const cargarMas = async (ev: CustomEvent<void>) => {
+    const target = ev.target as HTMLIonInfiniteScrollElement;
+    if (pagina >= totalPaginas) {
+      await target.complete();
+      return;
+    }
+    const siguiente = pagina + 1;
+    const res = await container.catalogo.listarPagina(filtro, { pagina: siguiente, limite: LIMITE_PAGINA });
+    setFilas((prev) => [...prev, ...res.items]);
+    setPagina(siguiente);
+    setTotalPaginas(res.totalPaginas);
+    await target.complete();
+  };
+
+  useIonViewWillEnter(() => {
+    void cargarTags();
+    void recargar(filtro);
+    void comprobarSync();
+  });
 
   const aplicar = (patch: Partial<Filtro>) => {
     const f = { ...filtro, ...patch };
@@ -66,6 +82,7 @@ export default function CatalogoPage() {
 
   const crear = async (input: NuevaObra) => {
     await container.catalogo.crear(input);
+    await cargarTags();
     await recargar(filtro);
   };
 
@@ -87,6 +104,7 @@ export default function CatalogoPage() {
     try {
       const backup = JSON.parse(await file.text());
       await container.backup.importar(backup);
+      await cargarTags();
       await recargar(filtro);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'No se pudo importar el archivo.');
@@ -151,7 +169,7 @@ export default function CatalogoPage() {
           </IonNote>
         )}
         <IonNote className="ion-padding-start" style={{ display: 'block', padding: 8 }}>
-          {filas.length} obra{filas.length === 1 ? '' : 's'} {/* RF-014: contador de coincidencias */}
+          {total} obra{total === 1 ? '' : 's'} {/* RF-014: contador real de coincidencias */}
         </IonNote>
 
         {filas.length === 0 ? (
@@ -159,7 +177,7 @@ export default function CatalogoPage() {
             {total === 0 ? (
               <>
                 <p className="muted">Tu catálogo está vacío.</p>
-                <IonButton fill="outline" onClick={async () => { await sembrarDemo(); await recargar(filtro); }}>
+                <IonButton fill="outline" onClick={async () => { await sembrarDemo(); await cargarTags(); await recargar(filtro); }}>
                   Cargar datos de ejemplo
                 </IonButton>
               </>
@@ -168,23 +186,32 @@ export default function CatalogoPage() {
             )}
           </div>
         ) : (
-          <IonList>
-            {filas.map(({ obra, capitulo, ultima }) => (
-              <IonItem key={obra.id} button detail onClick={() => history.push(`/obra/${obra.id}`)}>
-                <IonLabel>
-                  <h2>{obra.titulo}</h2>
-                  <p className="muted">
-                    {obra.tipo} · Cap. <span className="cap-actual">{capFmt(capitulo)}</span> · Última: {fechaCorta(ultima)}
-                  </p>
-                  <div>
-                    {obra.tags.slice(0, 3).map((t) => <IonChip key={t} outline>{t}</IonChip>)}
-                  </div>
-                </IonLabel>
-                <IonBadge slot="end" color={colorPrioridad[obra.prioridad]}>{obra.prioridad}</IonBadge>
-                <IonBadge slot="end" className="estado-badge" color={colorEstado[obra.estado]}>{obra.estado}</IonBadge>
-              </IonItem>
-            ))}
-          </IonList>
+          <>
+            <IonList>
+              {filas.map(({ obra, capitulo, ultima }) => (
+                <IonItem key={obra.id} button detail onClick={() => history.push(`/obra/${obra.id}`)}>
+                  <IonLabel>
+                    <h2>{obra.titulo}</h2>
+                    <p className="muted">
+                      {obra.tipo} · Cap. <span className="cap-actual">{capFmt(capitulo)}</span> · Última: {fechaCorta(ultima)}
+                    </p>
+                    <div>
+                      {obra.tags.slice(0, 3).map((t) => <IonChip key={t} outline>{t}</IonChip>)}
+                    </div>
+                  </IonLabel>
+                  <IonBadge slot="end" color={colorPrioridad[obra.prioridad]}>{obra.prioridad}</IonBadge>
+                  <IonBadge slot="end" className="estado-badge" color={colorEstado[obra.estado]}>{obra.estado}</IonBadge>
+                </IonItem>
+              ))}
+            </IonList>
+
+            <IonInfiniteScroll
+              disabled={pagina >= totalPaginas}
+              onIonInfinite={cargarMas}
+            >
+              <IonInfiniteScrollContent loadingText="Cargando más obras…" />
+            </IonInfiniteScroll>
+          </>
         )}
 
         <IonFab slot="fixed" vertical="bottom" horizontal="end">

@@ -43,4 +43,39 @@ describe('CatalogoService', () => {
     await svc.eliminar(o.id);
     expect(await repo.obtenerObra(o.id)).toBeUndefined();
   });
+
+  it('lista páginas con paginación y ensambla el progreso actual por batch', async () => {
+    await svc.crear({ titulo: 'Obra 1', tipo: 'manga' });
+    const o2 = await svc.crear({ titulo: 'Obra 2', tipo: 'manga' });
+    await svc.crear({ titulo: 'Obra 3', tipo: 'manga' });
+
+    // Agregar progreso para o2
+    await repo.agregarProgreso({
+      id: 'p1',
+      obraId: o2.id,
+      capitulo: 15,
+      registradoEn: new Date().toISOString(),
+    });
+
+    const pag1 = await svc.listarPagina({}, { pagina: 1, limite: 2 });
+    expect(pag1.items).toHaveLength(2);
+    expect(pag1.total).toBe(3);
+    expect(pag1.totalPaginas).toBe(2);
+    expect(pag1.pagina).toBe(1);
+
+    const item2 = pag1.items.find((i) => i.obra.id === o2.id);
+    expect(item2?.capitulo).toBe(15);
+
+    const pag2 = await svc.listarPagina({}, { pagina: 2, limite: 2 });
+    expect(pag2.items).toHaveLength(1);
+    expect(pag2.items[0].obra.titulo).toBe('Obra 3');
+  });
+
+  it('lista tags únicos ordenados alfabéticamente', async () => {
+    await svc.crear({ titulo: 'A', tipo: 'manga', tags: ['fantasia', 'accion'] });
+    await svc.crear({ titulo: 'B', tipo: 'manga', tags: ['aventura', 'accion'] });
+
+    const tags = await svc.listarTags();
+    expect(tags).toEqual(['accion', 'aventura', 'fantasia']);
+  });
 });

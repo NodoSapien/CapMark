@@ -6,6 +6,7 @@ import { Fuente, NuevaFuente } from '@domain/fuente';
 import { NuevaObra, Obra } from '@domain/obra';
 import { NuevoProgreso, ProgresoEntry } from '@domain/progreso';
 import { EstadoFuente } from '@domain/types';
+import { FiltroObras, OpcionesPaginacion, ResultadoPaginado } from './dtos/catalogo';
 
 export interface IdGen {
   nuevo(): string;
@@ -22,6 +23,8 @@ export interface Repositorio {
   guardarObra(obra: Obra): Promise<void>;
   obtenerObra(id: string): Promise<Obra | undefined>;
   listarObras(): Promise<Obra[]>;
+  buscarObras(filtro: FiltroObras, paginacion: OpcionesPaginacion): Promise<ResultadoPaginado<Obra>>;
+  listarTags(): Promise<string[]>;
   eliminarObra(id: string): Promise<void>; // borra en cascada fuentes + progreso (RF-006)
   // Fuentes
   guardarFuentes(obraId: string, fuentes: Fuente[]): Promise<void>;
@@ -29,6 +32,7 @@ export interface Repositorio {
   // Progreso
   agregarProgreso(entry: ProgresoEntry): Promise<void>;
   listarProgreso(obraId: string): Promise<ProgresoEntry[]>;
+  obtenerUltimoProgresoPorObras(obraIds: string[]): Promise<Map<string, ProgresoEntry>>;
 }
 
 /** RF-017 / RNF-008: verifica del lado servidor si una URL responde (≤ 5 s, no bloqueante). */
