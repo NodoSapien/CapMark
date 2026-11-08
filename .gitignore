@@ -11,3 +11,7 @@ ios/
 
 # Supabase self-hosted volumes
 infra/volumes/
+
+# dev-ai-toolkit symlinks (apuntan al clon local)
+.claude/skills/
+.claude/agents/
