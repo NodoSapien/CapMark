@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "CapMark Capture",
+  "version": "0.1.0",
+  "description": "Capture the current page and send it to CapMark as a proposal. Nothing is saved without your confirmation.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "action": { "default_popup": "popup.html", "default_title": "Send to CapMark" },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:5173/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
