@@ -28,18 +28,18 @@ export function procesarMensaje(data: unknown): PropuestaCaptura[] {
   return out;
 }
 
-/** Subscribes to extension messages; acks processed ids so the extension can clear its queue. */
+/** Subscribes to extension messages. Does NOT ack: the extension keeps the queue until the user decides. */
 export function escucharCapturas(onPropuestas: (p: PropuestaCaptura[]) => void): () => void {
   const handler = (e: MessageEvent) => {
     if (e.source !== window || e.origin !== window.location.origin) return;
     const propuestas = procesarMensaje(e.data);
-    if (propuestas.length === 0) return;
-    onPropuestas(propuestas);
-    window.postMessage(
-      { source: CAPMARK_APP_SOURCE, type: 'ack', ids: propuestas.map((p) => p.captura.id) },
-      window.location.origin,
-    );
+    if (propuestas.length > 0) onPropuestas(propuestas);
   };
   window.addEventListener('message', handler);
   return () => window.removeEventListener('message', handler);
+}
+
+/** Tells the extension these captures were confirmed or discarded so it clears them. */
+export function confirmarRecepcion(ids: string[]): void {
+  window.postMessage({ source: CAPMARK_APP_SOURCE, type: 'ack', ids }, window.location.origin);
 }

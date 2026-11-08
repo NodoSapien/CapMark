@@ -2,6 +2,7 @@
 // los servicios de aplicación. Cambiar de backend = cambiar aquí, sin tocar dominio/UI.
 
 import { BackupService } from '@application/backup-service';
+import { CapturaService } from '@application/captura-service';
 import { CatalogoService } from '@application/catalogo-service';
 import { FuenteService } from '@application/fuente-service';
 import { ProgresoService } from '@application/progreso-service';
@@ -17,10 +18,15 @@ import { HttpLinkVerifier } from './verify/link-verifier';
 const repo = new DexieRepositorio(db);
 const verifier = new HttpLinkVerifier();
 
+const catalogo = new CatalogoService(repo, idGen, reloj);
+const fuentes = new FuenteService(repo, idGen, verifier);
+const progreso = new ProgresoService(repo, idGen, reloj);
+
 export const container = {
-  catalogo: new CatalogoService(repo, idGen, reloj),
-  fuentes: new FuenteService(repo, idGen, verifier),
-  progreso: new ProgresoService(repo, idGen, reloj),
+  catalogo,
+  fuentes,
+  progreso,
+  capturas: new CapturaService(catalogo, fuentes, progreso),
   scraper: new ScraperService([new GenericScraper()]),
   backup: new BackupService(repo),
   sync: new SupabaseSync(),
