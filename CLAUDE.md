@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # CapMark — guía para trabajar en este repo
 
 Tracker local-first de manga/manhua/novelas (Ionic React + Capacitor + TypeScript).
@@ -11,6 +15,13 @@ Backend de sincronización **opcional y auto-instanciable** (Supabase self-hoste
 - `pnpm run build` — typecheck + build
 - `pnpm run bootstrap` — levanta el backend con secretos + migraciones (no manual)
 - `make check` — lo que corre CI (typecheck + test + build)
+- Un solo test: `pnpm vitest run src/application/progreso-service.test.ts` (o `-t "nombre"`);
+  `pnpm run test:watch` para modo watch
+- `pnpm run test:smoke-db` — smoke test de Postgres + migraciones (requiere Docker)
+- `pnpm run backend:up|backend:down|backend:logs` — controla el backend ya generado
+
+Los tests corren en entorno `node` (sin DOM): solo `src/**/*.test.ts`, sin tests de UI.
+Helpers compartidos de tests en `src/test/support.ts` (alias `@test`).
 
 ## Arquitectura por capas (respetar RNF-009)
 
@@ -31,6 +42,11 @@ ui  →  application  →  domain
 
 Aliases de import: `@domain`, `@application`, `@infrastructure`, `@ui`, `@test`.
 
+Los servicios reciben sus dependencias por constructor (repo, `idGen`, `reloj`, verifier), así
+que en tests se inyectan fakes en vez de Dexie/HTTP. Un servicio nuevo se registra en
+`src/infrastructure/container.ts`, que además expone `importFromPostgres` (consola del navegador,
+`window.capmark`); su lógica vive en `src/infrastructure/dev/` para mantener el container solo como cableado.
+
 ## Convenciones
 
 - Nombres de dominio en español (Obra, Fuente, Progreso), consistente con `Docs/`.
@@ -48,3 +64,9 @@ La app funciona sin backend; `container.sync.disponible()` decide si hay sincron
 ## Plan
 
 Roadmap por fases en `Docs/06-plan-de-trabajo.md`. Sync completo (outbox + Realtime) = Fase 3.
+
+## Skills y agentes (dev-ai-toolkit)
+
+`tools/dev-ai-toolkit` es un submódulo (`git clone --recurse-submodules`). Los skills/agentes se enlazan
+en `.claude/` (ignorado por git) con:
+`./tools/dev-ai-toolkit/install.sh --project --stack react,supabase --with-base`
