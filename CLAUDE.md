@@ -70,3 +70,9 @@ Roadmap por fases en `Docs/06-plan-de-trabajo.md`. Sync completo (outbox + Realt
 `tools/dev-ai-toolkit` es un submódulo (`git clone --recurse-submodules`). Los skills/agentes se enlazan
 en `.claude/` (ignorado por git) con:
 `./tools/dev-ai-toolkit/install.sh --project --stack react,supabase --with-base`
+
+## Extensión de navegador
+
+`extension/` (MV3, sin build) captura la pestaña activa y la encola; `src/infrastructure/extension/`
+valida los mensajes y propone el capítulo reutilizando `extraerCapitulo`. El protocolo vive en
+`src/application/captura-externa.ts`. Sigue la regla S2: propone, nunca guarda solo.

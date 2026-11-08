@@ -11,6 +11,7 @@ import { Filtro, ItemCatalogo } from '@application/catalogo-service';
 import { NuevaObra } from '@application/ports';
 import { ESTADOS_OBRA, PRIORIDADES } from '@domain/types';
 import { container } from '@infrastructure/container';
+import BandejaCapturas from '@ui/components/BandejaCapturas';
 import ObraFormModal from '@ui/components/ObraFormModal';
 import { capFmt, colorEstado, colorPrioridad, fechaCorta } from '@ui/format';
 import { useFeedback } from '@ui/hooks/useFeedback';
@@ -120,6 +121,7 @@ export default function CatalogoPage() {
         <IonToolbar>
           <IonTitle>Catálogo</IonTitle>
           <IonButtons slot="end">
+            <BandejaCapturas onRegistrado={() => { void recargar(filtro); void cargarTags(); }} />
             <IonButton onClick={exportar} title="Exportar backup (local)">
               <IonIcon slot="icon-only" icon={downloadOutline} />
             </IonButton>
